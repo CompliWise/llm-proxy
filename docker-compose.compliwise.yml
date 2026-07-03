@@ -1,0 +1,130 @@
+# CompliWise local AI Gateway stack (llm-proxy + sidecars).
+# Start: scripts/dev/start-ai-gateway.sh
+
+services:
+  llm-proxy:
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+    container_name: compliwise-llm-proxy
+    ports:
+      - "9002:9002"
+    volumes:
+      - .:/app
+      - /app/bin
+      - /app/tmp
+      - ./logs:/app/logs
+    working_dir: /app
+    command: ["air", "-c", ".air.toml"]
+    depends_on:
+      redis:
+        condition: service_healthy
+      presidio-analyzer:
+        condition: service_started
+    environment:
+      - PORT=9002
+      - ENVIRONMENT=dev
+      - LLM_PROXY_CONFIG_PROFILE=compliwise-dev
+      - REDIS_URL=redis://redis:6379
+      - PRESIDIO_ANALYZER_URL=http://presidio-analyzer:3000
+      - LLM_PROXY_ADMIN_SESSION_SECRET=${LLM_PROXY_ADMIN_SESSION_SECRET:-dev-local-session-secret-not-for-prod}
+      - ADMIN_PUBLIC_BASE_URL=http://localhost:9002
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-local}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-local}
+      - AWS_ENDPOINT_URL=http://dynamodb:8000
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9002/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - compliwise-ai-gateway
+
+  redis:
+    image: redis:7-alpine
+    container_name: compliwise-llm-proxy-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - compliwise-ai-gateway
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  presidio-analyzer:
+    image: mcr.microsoft.com/presidio-analyzer:latest
+    container_name: compliwise-presidio-analyzer
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./recognizers.yaml:/app/presidio_analyzer/conf/default_recognizers.yaml:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/health",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - compliwise-ai-gateway
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: compliwise-clickhouse
+    ports:
+      - "8123:8123"
+    networks:
+      - compliwise-ai-gateway
+    restart: unless-stopped
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    container_name: compliwise-llm-proxy-dynamodb
+    user: root
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/data"]
+    volumes:
+      - compliwise-llm-proxy-dynamodb-data:/data
+    ports:
+      - "8000:8000"
+    networks:
+      - compliwise-ai-gateway
+
+  opa:
+    image: openpolicyagent/opa:latest
+    container_name: compliwise-opa
+    profiles:
+      - opa
+    ports:
+      - "8181:8181"
+    command: ["run", "--server", "--addr", ":8181"]
+    networks:
+      - compliwise-ai-gateway
+    restart: unless-stopped
+
+networks:
+  compliwise-ai-gateway:
+    driver: bridge
+
+volumes:
+  compliwise-llm-proxy-dynamodb-data:

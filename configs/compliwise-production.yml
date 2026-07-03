@@ -1,0 +1,31 @@
+# CompliWise production overlay — merged after base.yml and production.yml
+# Activate with LLM_PROXY_CONFIG_PROFILE=compliwise-production
+
+features:
+  cost_tracking:
+    enabled: true
+    async: true
+  rate_limiting:
+    enabled: true
+    backend: redis
+  circuit_breaker:
+    enabled: true
+    backend: redis
+  pii_redact:
+    enabled: true
+    fail_mode: "closed"
+  admin_dashboard:
+    enabled: true
+  history:
+    backend: local
+    streams: [cost, pii, usage, ratelimit]
+
+providers:
+  openai:
+    enabled: true
+  anthropic:
+    enabled: true
+  gemini:
+    enabled: true
+  bedrock:
+    enabled: false

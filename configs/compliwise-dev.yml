@@ -1,0 +1,36 @@
+# CompliWise development overlay — merged after base.yml and dev.yml
+# Activate with LLM_PROXY_CONFIG_PROFILE=compliwise-dev
+
+features:
+  cost_tracking:
+    enabled: true
+    async: true
+  rate_limiting:
+    enabled: true
+    backend: redis
+  circuit_breaker:
+    enabled: true
+    backend: redis
+    redis:
+      address: "redis:6379"
+      db: 5
+  pii_redact:
+    enabled: true
+    analyzer_url: "http://presidio-analyzer:3000"
+    fail_mode: "closed"
+  admin_dashboard:
+    enabled: true
+    dev_cors_origin: "http://localhost:3000"
+  history:
+    backend: local
+    streams: [cost, pii, usage, ratelimit]
+
+providers:
+  openai:
+    enabled: true
+  anthropic:
+    enabled: true
+  gemini:
+    enabled: true
+  bedrock:
+    enabled: false
