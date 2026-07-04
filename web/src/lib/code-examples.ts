@@ -1,16 +1,16 @@
 import type { Provider } from "../types";
 
 export interface CodeExample {
+  code: string;
   id: string;
   label: string;
   language: string;
-  code: string;
 }
 
 interface Ctx {
-  provider: Provider;
   baseUrl: string; // e.g. https://proxy/openai/v1
   key: string; // iw:... proxy key
+  provider: Provider;
 }
 
 function openai({ baseUrl, key }: Ctx): CodeExample[] {
@@ -371,7 +371,10 @@ export function scrubProxyKeyFromText(text: string, knownKey?: string): string {
 // assistantPrompt returns a ready-to-paste prompt for Cursor / Replit / other
 // AI coding assistants to wire the proxy key into an existing project.
 // Never pass the real key — use PROMPT_KEY_PLACEHOLDER only.
-export function assistantPrompt({ provider, baseUrl }: Omit<Ctx, "key">): string {
+export function assistantPrompt({
+  provider,
+  baseUrl,
+}: Omit<Ctx, "key">): string {
   const envName =
     provider === "anthropic"
       ? "ANTHROPIC_BASE_URL / ANTHROPIC_API_KEY"

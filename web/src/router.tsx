@@ -1,26 +1,25 @@
-import { ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
+import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-
-import DefaultRedirect from "./components/default-redirect";
+import { queryClient } from "./client";
 import AppShell from "./components/app-shell";
+import DefaultRedirect from "./components/default-redirect";
 import RequireRole from "./components/require-role";
 import ErrorBoundary from "./components/ui/error-boundary";
-import { queryClient } from "./client";
+import { ADMIN_BASENAME } from "./lib/admin-path";
 import CircuitPage from "./pages/circuit";
 import ConfigPage from "./pages/config";
 import CostPage from "./pages/cost";
-import KeyDetailPage from "./pages/keys/detail";
 import KeysPage from "./pages/keys";
+import KeyDetailPage from "./pages/keys/detail";
 import LoginPage from "./pages/login";
 import ModelStatusPage from "./pages/model-status";
 import OverviewPage from "./pages/overview";
 import PIIPage from "./pages/pii";
 import RateLimitsPage from "./pages/rate-limits";
 import SharePage from "./pages/share";
-import UsersPage from "./pages/users";
 import UsagePage from "./pages/usage";
-import { ADMIN_BASENAME } from "./lib/admin-path";
+import UsersPage from "./pages/users";
 
 function shell(page: ReactNode) {
   return (
@@ -31,105 +30,116 @@ function shell(page: ReactNode) {
 }
 
 export default function Router() {
-  const basename = window.location.pathname.startsWith(`${ADMIN_BASENAME}/`) ? ADMIN_BASENAME : undefined;
+  const basename = window.location.pathname.startsWith(`${ADMIN_BASENAME}/`)
+    ? ADMIN_BASENAME
+    : undefined;
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter basename={basename} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <BrowserRouter
+        basename={basename}
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/share/:id" element={<SharePage />} />
+          <Route element={<LoginPage />} path="/login" />
+          <Route element={<SharePage />} path="/share/:id" />
           <Route
-            path="/"
             element={shell(
               <RequireRole minRole="editor">
                 <OverviewPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/"
           />
           <Route
-            path="/usage"
             element={shell(
               <RequireRole minRole="editor">
                 <UsagePage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/usage"
           />
           <Route
-            path="/circuit"
             element={shell(
               <RequireRole minRole="editor">
                 <CircuitPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/circuit"
           />
           <Route
-            path="/rate-limits"
             element={shell(
               <RequireRole minRole="editor">
                 <RateLimitsPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/rate-limits"
           />
           <Route
-            path="/cost"
             element={shell(
               <RequireRole minRole="editor">
                 <CostPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/cost"
           />
           <Route
-            path="/pii"
             element={shell(
               <RequireRole minRole="editor">
                 <PIIPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/pii"
           />
           <Route
-            path="/model-status"
             element={shell(
               <RequireRole minRole="editor">
                 <ModelStatusPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/model-status"
           />
           <Route
-            path="/config"
             element={shell(
               <RequireRole minRole="admin">
                 <ConfigPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/config"
           />
           <Route
-            path="/keys/:key"
             element={shell(
               <RequireRole minRole="viewer">
                 <KeyDetailPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/keys/:key"
           />
           <Route
-            path="/keys"
             element={shell(
               <RequireRole minRole="viewer">
                 <KeysPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/keys"
           />
-          <Route path="/request-key" element={<Navigate to="/keys?request=1" replace />} />
-          <Route path="/key-requests" element={<Navigate to="/keys?tab=requests" replace />} />
           <Route
-            path="/users"
+            element={<Navigate replace to="/keys?request=1" />}
+            path="/request-key"
+          />
+          <Route
+            element={<Navigate replace to="/keys?tab=requests" />}
+            path="/key-requests"
+          />
+          <Route
             element={shell(
               <RequireRole minRole="admin">
                 <UsersPage />
-              </RequireRole>,
+              </RequireRole>
             )}
+            path="/users"
           />
-          <Route path="*" element={<DefaultRedirect />} />
+          <Route element={<DefaultRedirect />} path="*" />
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

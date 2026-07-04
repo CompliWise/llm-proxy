@@ -1,21 +1,23 @@
-import type { Provider } from "../types";
-
 import anthropicCredential from "../assets/n8n/anthropic-credential.png";
 import geminiCredential from "../assets/n8n/gemini-credential.png";
 import openaiCredential from "../assets/n8n/openai-credential.png";
 import openaiNodeCredential from "../assets/n8n/openai-node-credential.png";
+import type { Provider } from "../types";
 
 export interface N8nSetupGuide {
-  credentialLabel: string;
-  nodeLabel: string;
-  urlField?: "Base URL" | "Host";
   credentialImage?: string;
+  credentialLabel: string;
   nodeImage?: string;
-  steps: string[];
+  nodeLabel: string;
   note?: string;
+  steps: string[];
+  urlField?: "Base URL" | "Host";
 }
 
-export function n8nSetupGuide(provider: Provider, baseUrl: string): N8nSetupGuide | null {
+export function n8nSetupGuide(
+  provider: Provider,
+  baseUrl: string
+): N8nSetupGuide | null {
   switch (provider) {
     case "openai":
       return {

@@ -2,12 +2,12 @@ import type { AdminRole } from "../types";
 
 import { roleAtLeast, roleAtMost } from "./rbac";
 
-export type NavItem = {
-  to: string;
+export interface NavItem {
   label: string;
-  minRole: AdminRole;
   maxRole?: AdminRole;
-};
+  minRole: AdminRole;
+  to: string;
+}
 
 export const MONITORING_NAV: NavItem[] = [
   { to: "/", label: "Overview", minRole: "editor" },
@@ -30,7 +30,7 @@ export function navItemsForRole(role: AdminRole) {
     items.filter(
       (item) =>
         roleAtLeast(role, item.minRole) &&
-        (item.maxRole == null || roleAtMost(role, item.maxRole)),
+        (item.maxRole == null || roleAtMost(role, item.maxRole))
     );
   return {
     monitoring: visible(MONITORING_NAV),
@@ -50,7 +50,9 @@ export function minRoleForPath(pathname: string): AdminRole | null {
   const path = pathname === "/" ? "/" : pathname.replace(/\/$/, "");
   for (const item of [...MONITORING_NAV, ...MANAGE_NAV]) {
     if (item.to === "/") {
-      if (path === "/") return item.minRole;
+      if (path === "/") {
+        return item.minRole;
+      }
       continue;
     }
     if (path === item.to || path.startsWith(`${item.to}/`)) {

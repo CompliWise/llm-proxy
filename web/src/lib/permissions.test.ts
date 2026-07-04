@@ -1,13 +1,12 @@
 import { describe, expect, it } from "vitest";
-
-import { can, permissions, type Permission } from "./permissions";
 import type { AdminRole } from "../types";
+import { can, type Permission, permissions } from "./permissions";
 
-type CanCase = {
-  role: AdminRole;
+interface CanCase {
   permission: Permission;
+  role: AdminRole;
   want: boolean;
-};
+}
 
 const canMatrix: CanCase[] = [
   { role: "viewer", permission: "list_keys", want: true },
@@ -56,7 +55,11 @@ const canMatrix: CanCase[] = [
 ];
 
 describe("can permission matrix", () => {
-  it.each(canMatrix)("$role may $permission = $want", ({ role, permission, want }) => {
+  it.each(canMatrix)("$role may $permission = $want", ({
+    role,
+    permission,
+    want,
+  }) => {
     expect(can(role, permission)).toBe(want);
   });
 

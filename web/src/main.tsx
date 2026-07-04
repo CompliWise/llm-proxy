@@ -13,5 +13,5 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <ToastProvider>
       <Router />
     </ToastProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 );

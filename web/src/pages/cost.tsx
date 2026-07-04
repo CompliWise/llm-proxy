@@ -1,11 +1,20 @@
 import { useMemo, useState } from "react";
-
-import SpendByKeyTable from "../components/cost/spend-by-key-table";
-import SpendByUserTable from "../components/cost/spend-by-user-table";
-import SpendByProviderTable from "../components/cost/spend-by-provider-table";
-import { LimitSpendTable, RecentCostTable, TransportsTable } from "../components/cost/extra-tables";
-import { BarChart, ChartCard, DonutChart, GroupedBarChart, TrendChart } from "../components/charts";
+import {
+  BarChart,
+  ChartCard,
+  DonutChart,
+  GroupedBarChart,
+  TrendChart,
+} from "../components/charts";
 import { chartPalette } from "../components/charts/chart-setup";
+import {
+  LimitSpendTable,
+  RecentCostTable,
+  TransportsTable,
+} from "../components/cost/extra-tables";
+import SpendByKeyTable from "../components/cost/spend-by-key-table";
+import SpendByProviderTable from "../components/cost/spend-by-provider-table";
+import SpendByUserTable from "../components/cost/spend-by-user-table";
 import {
   type DataSource,
   LiveStat,
@@ -13,31 +22,44 @@ import {
   SectionPanel,
   trendChartSource,
 } from "../components/ui/data-source";
-import PageHeader, { ErrorAlert, LiveIndicator, LoadingBlock } from "../components/ui/page-header";
+import PageHeader, {
+  ErrorAlert,
+  LiveIndicator,
+  LoadingBlock,
+} from "../components/ui/page-header";
 import { useCost, useKeys } from "../hooks/queries";
 import { useByoBanActions } from "../hooks/use-byo-ban-actions";
 import { LIVE_TREND_CHART_SUBTITLE, useHistory } from "../hooks/use-history";
 import {
+  aggCostByKey,
+  aggCostByProvider,
+  aggCostByUser,
   type CostKeyAgg,
   type CostUserAgg,
   DAILY_HISTORY_SUBTITLE,
   HOURLY_HISTORY_FALLBACK_SUBTITLE,
   HOURLY_HISTORY_SUBTITLE,
-  type RangeKey,
-  RANGE_OPTIONS,
-  aggCostByKey,
-  aggCostByUser,
-  aggCostByProvider,
   hourlySeries,
   pickToday,
+  RANGE_OPTIONS,
+  type RangeKey,
   scalarSeries,
 } from "../lib/daily-history";
-import { compact, formatCount, formatUsd, keySpendCapCents, maskKeyId, scopeLabel } from "../lib/format";
+import {
+  compact,
+  formatCount,
+  formatUsd,
+  keySpendCapCents,
+  maskKeyId,
+  scopeLabel,
+} from "../lib/format";
 import { donutSlices } from "../lib/group-rows";
 import type { CostKeySpend, CostScopeSpend } from "../types";
 
 function rangeLabel(range: RangeKey): string {
-  return range === "today" ? "today" : `last ${range === "7d" ? "7" : "30"} days`;
+  return range === "today"
+    ? "today"
+    : `last ${range === "7d" ? "7" : "30"} days`;
 }
 
 function memKeyAgg(byKey: CostKeySpend[]): CostKeyAgg[] {
@@ -52,7 +74,9 @@ function memKeyAgg(byKey: CostKeySpend[]): CostKeyAgg[] {
   }));
 }
 
-function memUserAgg(byUser: Record<string, CostScopeSpend> | undefined): CostUserAgg[] {
+function memUserAgg(
+  byUser: Record<string, CostScopeSpend> | undefined
+): CostUserAgg[] {
   return Object.entries(byUser ?? {})
     .map(([scope, row]) => ({
       scope,
@@ -76,7 +100,8 @@ const SPEND_COLORS = [
 ];
 
 export default function CostPage() {
-  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } = useCost();
+  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } =
+    useCost();
   const keys = useKeys();
   const byoBanActions = useByoBanActions();
   const [range, setRange] = useState<RangeKey>("today");
@@ -89,62 +114,83 @@ export default function CostPage() {
     stats?.available ? stats?.spend_today_usd : undefined,
     history,
     "spend_today_usd",
-    hasRedis,
+    hasRedis
   );
   const requestsToday = pickToday(
     stats?.available ? stats?.requests_today : undefined,
     history,
     "requests_today",
-    hasRedis,
+    hasRedis
   );
   const inputSpendToday = pickToday(
     stats?.available ? stats?.input_spend_today_usd : undefined,
     history,
     "input_spend_today_usd",
-    hasRedis,
+    hasRedis
   );
   const outputSpendToday = pickToday(
     stats?.available ? stats?.output_spend_today_usd : undefined,
     history,
     "output_spend_today_usd",
-    hasRedis,
+    hasRedis
   );
   const inputTokensToday = pickToday(
     stats?.available ? stats?.input_tokens_today : undefined,
     history,
     "input_tokens_today",
-    hasRedis,
+    hasRedis
   );
   const outputTokensToday = pickToday(
     stats?.available ? stats?.output_tokens_today : undefined,
     history,
     "output_tokens_today",
-    hasRedis,
+    hasRedis
   );
   const tokensSource: DataSource =
-    inputTokensToday.source === "memory" && outputTokensToday.source === "memory"
+    inputTokensToday.source === "memory" &&
+    outputTokensToday.source === "memory"
       ? "memory"
       : hasRedis
         ? "redislive"
         : "memory";
 
-  const spendHistory = useHistory(stats?.available ? spendToday.value : undefined);
+  const spendHistory = useHistory(
+    stats?.available ? spendToday.value : undefined
+  );
   const dailySpend = useMemo(
     () => scalarSeries(history, "spend_today_usd", range),
-    [history, range],
+    [history, range]
   );
-  const useDailyChart = Boolean(hasRedis && range !== "today" && dailySpend.available);
+  const useDailyChart = Boolean(
+    hasRedis && range !== "today" && dailySpend.available
+  );
   const hourlySpend = useMemo(
     () => hourlySeries(stats?.hourly_history, "spend_today_usd"),
-    [stats?.hourly_history],
+    [stats?.hourly_history]
   );
-  const useHourlyChart = Boolean(stats?.hourly_history_available && range === "today" && hourlySpend.available);
+  const useHourlyChart = Boolean(
+    stats?.hourly_history_available &&
+      range === "today" &&
+      hourlySpend.available
+  );
 
-  if (isLoading) return <LoadingBlock />;
-  if (error) {
-    return <ErrorAlert message={error instanceof Error ? error.message : "Failed to load cost tracking"} />;
+  if (isLoading) {
+    return <LoadingBlock />;
   }
-  if (!data) return null;
+  if (error) {
+    return (
+      <ErrorAlert
+        message={
+          error instanceof Error
+            ? error.message
+            : "Failed to load cost tracking"
+        }
+      />
+    );
+  }
+  if (!data) {
+    return null;
+  }
 
   const transports = data.transports ?? [];
   const keyList = keys.data ?? [];
@@ -157,7 +203,9 @@ export default function CostPage() {
   // on a multi-pod fleet. Fall back to memory only when Redis isn't wired up.
   const useRedisBreakdown = hasRedis || range !== "today";
   const memKeys = memKeyAgg(byKey);
-  const rangeByKey: CostKeyAgg[] = useRedisBreakdown ? aggCostByKey(history, range) : memKeys;
+  const rangeByKey: CostKeyAgg[] = useRedisBreakdown
+    ? aggCostByKey(history, range)
+    : memKeys;
   const memUsers = memUserAgg(stats?.by_user);
   const rangeByUser: CostUserAgg[] = useRedisBreakdown
     ? aggCostByUser(history, range, scopeLabel)
@@ -165,7 +213,10 @@ export default function CostPage() {
   const breakdownSource: DataSource = useRedisBreakdown ? "redis" : "memory";
   const withSpend = rangeByKey.filter((row) => row.spend_usd > 0);
   const withUserSpend = rangeByUser.filter((row) => row.spend_usd > 0);
-  const rangeSpendTotal = withSpend.reduce((sum, row) => sum + row.spend_usd, 0);
+  const rangeSpendTotal = withSpend.reduce(
+    (sum, row) => sum + row.spend_usd,
+    0
+  );
   const donutData = donutSlices(
     withSpend.map((row) => {
       const record = keyList.find((k) => maskKeyId(k.key) === row.key_id);
@@ -174,16 +225,22 @@ export default function CostPage() {
     withSpend.map((row) => row.spend_usd),
     withSpend.map((_, i) => SPEND_COLORS[i % SPEND_COLORS.length]()),
     8,
-    chartPalette.tick(),
+    chartPalette.tick()
   );
 
   const memProviders = stats?.by_provider ?? [];
   const rangeByProvider = useRedisBreakdown
     ? aggCostByProvider(history, range)
-    : memProviders.map((p) => ({ name: p.name, spend_usd: p.spend_usd, requests: p.requests }));
+    : memProviders.map((p) => ({
+        name: p.name,
+        spend_usd: p.spend_usd,
+        requests: p.requests,
+      }));
   const withProviderSpend = rangeByProvider.filter((row) => row.spend_usd > 0);
 
-  const todayByKey = hasRedis ? aggCostByKey(history, "today") : memKeyAgg(byKey);
+  const todayByKey = hasRedis
+    ? aggCostByKey(history, "today")
+    : memKeyAgg(byKey);
 
   const limitRows = keyList
     .map((key) => {
@@ -201,60 +258,71 @@ export default function CostPage() {
     .filter((row) => row.limitUsd > 0 || row.spendUsd > 0)
     .sort((a, b) => b.spendUsd - a.spendUsd || b.limitUsd - a.limitUsd);
 
-  const limitChartRows = limitRows.filter((row) => row.limitUsd > 0).slice(0, 8);
+  const limitChartRows = limitRows
+    .filter((row) => row.limitUsd > 0)
+    .slice(0, 8);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Cost Tracking"
-        description="Live spend rollup (since last restart, UTC calendar day) plus pipeline configuration and per-key limits."
         actions={
           <div className="flex items-center gap-3">
-            <RangeToggle value={range} options={RANGE_OPTIONS} onChange={setRange} />
-            <LiveIndicator updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
+            <RangeToggle
+              onChange={setRange}
+              options={RANGE_OPTIONS}
+              value={range}
+            />
+            <LiveIndicator
+              fetching={isFetching}
+              onRefresh={() => refetch()}
+              updatedAt={dataUpdatedAt}
+            />
           </div>
         }
+        description="Live spend rollup (since last restart, UTC calendar day) plus pipeline configuration and per-key limits."
+        title="Cost Tracking"
       />
 
-      {!data.enabled ? (
+      {data.enabled ? null : (
         <div className="alert">
           <span>Cost tracking is disabled.</span>
         </div>
-      ) : null}
+      )}
 
-      {!stats?.available ? (
+      {stats?.available ? null : (
         <div className="alert alert-info">
           <span>
-            Live spend stats are inactive — enable <code className="mx-1">features.cost_tracking</code> and restart
-            the proxy.
+            Live spend stats are inactive — enable{" "}
+            <code className="mx-1">features.cost_tracking</code> and restart the
+            proxy.
           </span>
         </div>
-      ) : null}
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <LiveStat
-          title="Spend today"
-          value={formatUsd(spendToday.value)}
           hint={`${formatUsd(inputSpendToday.value)} in · ${formatUsd(outputSpendToday.value)} out`}
           source={spendToday.source}
+          title="Spend today"
+          value={formatUsd(spendToday.value)}
         />
         <LiveStat
-          title="Requests"
-          value={formatCount(requestsToday.value)}
           hint="tracked today"
           source={requestsToday.source}
+          title="Requests"
+          value={formatCount(requestsToday.value)}
         />
         <LiveStat
-          title="Tokens"
-          value={compact(inputTokensToday.value + outputTokensToday.value)}
           hint={`${compact(inputTokensToday.value)} in · ${compact(outputTokensToday.value)} out`}
           source={tokensSource}
+          title="Tokens"
+          value={compact(inputTokensToday.value + outputTokensToday.value)}
         />
         <LiveStat
-          title="Pipeline"
-          value={data.async ? "Async" : "Sync"}
           hint={`${transports.length} transport${transports.length === 1 ? "" : "s"} · ${withLimits.length} keys w/ limits`}
           source="config"
+          title="Pipeline"
+          value={data.async ? "Async" : "Sync"}
           valueClassName="text-lg"
         />
       </div>
@@ -262,7 +330,7 @@ export default function CostPage() {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ChartCard
-            title="Spend over time"
+            source={trendChartSource(useDailyChart || useHourlyChart)}
             subtitle={
               useDailyChart
                 ? DAILY_HISTORY_SUBTITLE
@@ -272,75 +340,85 @@ export default function CostPage() {
                     ? HOURLY_HISTORY_FALLBACK_SUBTITLE
                     : LIVE_TREND_CHART_SUBTITLE
             }
-            source={trendChartSource(useDailyChart || useHourlyChart)}
+            title="Spend over time"
           >
             {useDailyChart ? (
               <BarChart
+                colors={dailySpend.labels.map(() => chartPalette.primary())}
+                label="Daily spend (USD)"
                 labels={dailySpend.labels}
                 values={dailySpend.values}
-                label="Daily spend (USD)"
-                colors={dailySpend.labels.map(() => chartPalette.primary())}
               />
             ) : useHourlyChart ? (
               <BarChart
+                colors={hourlySpend.labels.map(() => chartPalette.primary())}
+                label="Hourly spend (USD)"
                 labels={hourlySpend.labels}
                 values={hourlySpend.values}
-                label="Hourly spend (USD)"
-                colors={hourlySpend.labels.map(() => chartPalette.primary())}
               />
             ) : (
-              <TrendChart points={spendHistory} label="Spend today (USD)" color={chartPalette.primary()} />
+              <TrendChart
+                color={chartPalette.primary()}
+                label="Spend today (USD)"
+                points={spendHistory}
+              />
             )}
           </ChartCard>
         </div>
         <ChartCard
-          title="Spend by key"
-          subtitle={`Share of ${rangeLabel(range)}'s spend`}
           source={breakdownSource}
+          subtitle={`Share of ${rangeLabel(range)}'s spend`}
+          title="Spend by key"
         >
           <DonutChart
+            centerLabel={rangeLabel(range)}
+            centerValue={formatUsd(rangeSpendTotal)}
+            colors={donutData.colors}
             labels={donutData.labels}
             values={donutData.values}
-            colors={donutData.colors}
-            centerValue={formatUsd(rangeSpendTotal)}
-            centerLabel={rangeLabel(range)}
           />
         </ChartCard>
       </div>
 
-      {withSpend.length > 0 || withUserSpend.length > 0 || withProviderSpend.length > 0 ? (
+      {withSpend.length > 0 ||
+      withUserSpend.length > 0 ||
+      withProviderSpend.length > 0 ? (
         <div className="grid gap-4 lg:grid-cols-2">
           {withUserSpend.length > 0 ? (
             <SectionPanel
-              title="Spend by user"
+              source={breakdownSource}
               subtitle={
                 range === "today"
                   ? `Client user rollup for ${stats?.day ?? "today"}`
                   : `Summed Redis rollups · ${rangeLabel(range)}`
               }
-              source={breakdownSource}
+              title="Spend by user"
             >
               <SpendByUserTable rows={withUserSpend} />
             </SectionPanel>
           ) : null}
           {withSpend.length > 0 ? (
             <SectionPanel
-              title="Spend by key"
+              source={breakdownSource}
               subtitle={
                 range === "today"
                   ? `API key rollup for ${stats?.day ?? "today"}`
                   : `Summed Redis rollups · ${rangeLabel(range)}`
               }
-              source={breakdownSource}
+              title="Spend by key"
             >
-              <SpendByKeyTable rows={withSpend} keys={keyList} byoBanActions={byoBanActions} />
+              <SpendByKeyTable
+                byoBanActions={byoBanActions}
+                keys={keyList}
+                rows={withSpend}
+              />
             </SectionPanel>
           ) : null}
           {withProviderSpend.length > 0 ? (
             <SectionPanel
-              title="Spend by provider"
-              subtitle={`Tracked spend · ${rangeLabel(range)}`}
               source={breakdownSource}
+              subtitle={`Tracked spend · ${rangeLabel(range)}`}
+              title="Spend by provider"
             >
               <SpendByProviderTable rows={withProviderSpend} />
             </SectionPanel>
@@ -349,12 +427,16 @@ export default function CostPage() {
       ) : null}
 
       <ChartCard
-        title="Spend vs limit"
-        subtitle="Spend is today's rollup; caps from key config (DynamoDB)"
         source={breakdownSource}
+        subtitle="Spend is today's rollup; caps from key config (DynamoDB)"
+        title="Spend vs limit"
       >
         <GroupedBarChart
-          labels={limitChartRows.map((row) => row.key.description || maskKeyId(row.key.key))}
+          height={Math.max(220, limitChartRows.length * 36)}
+          horizontal
+          labels={limitChartRows.map(
+            (row) => row.key.description || maskKeyId(row.key.key)
+          )}
           series={[
             {
               label: "Spend today",
@@ -367,39 +449,47 @@ export default function CostPage() {
               color: chartPalette.info,
             },
           ]}
-          horizontal
-          height={Math.max(220, limitChartRows.length * 36)}
         />
       </ChartCard>
 
-      <SectionPanel title="Async pipeline" source="config">
+      <SectionPanel source="config" title="Async pipeline">
         <div className="grid gap-4 p-5 sm:grid-cols-2">
           <Field label="Workers" value={data.workers} />
           <Field label="Queue size" value={data.queue_size} />
-          <Field label="Flush interval" value={data.flush_interval ? `${data.flush_interval}s` : undefined} />
-          <Field label="Transports" value={data.transport_count ?? transports.length} />
+          <Field
+            label="Flush interval"
+            value={data.flush_interval ? `${data.flush_interval}s` : undefined}
+          />
+          <Field
+            label="Transports"
+            value={data.transport_count ?? transports.length}
+          />
         </div>
       </SectionPanel>
 
       <SectionPanel
-        title="Per-key spend vs limit"
-        subtitle="Spend is today's rollup; caps are stored on the key (DynamoDB)"
         source={breakdownSource}
+        subtitle="Spend is today's rollup; caps are stored on the key (DynamoDB)"
+        title="Per-key spend vs limit"
       >
-        <LimitSpendTable rows={limitRows} keys={keyList} />
+        <LimitSpendTable keys={keyList} rows={limitRows} />
       </SectionPanel>
 
       {recent.length > 0 ? (
         <SectionPanel
-          title="Recent tracked requests"
-          subtitle="Last 50 events — not written to Redis"
           source="memory"
+          subtitle="Last 50 events — not written to Redis"
+          title="Recent tracked requests"
         >
-          <RecentCostTable rows={recent} keys={keyList} />
+          <RecentCostTable keys={keyList} rows={recent} />
         </SectionPanel>
       ) : null}
 
-      <SectionPanel title="Configured transports" subtitle="Cost audit pipeline (file / DynamoDB / Datadog)" source="config">
+      <SectionPanel
+        source="config"
+        subtitle="Cost audit pipeline (file / DynamoDB / Datadog)"
+        title="Configured transports"
+      >
         <TransportsTable transports={transports} />
       </SectionPanel>
     </div>
@@ -409,8 +499,10 @@ export default function CostPage() {
 function Field({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs uppercase tracking-wide text-base-content/50">{label}</p>
-      <p className="text-lg font-medium">{value ?? "—"}</p>
+      <p className="text-base-content/50 text-xs uppercase tracking-wide">
+        {label}
+      </p>
+      <p className="font-medium text-lg">{value ?? "—"}</p>
     </div>
   );
 }

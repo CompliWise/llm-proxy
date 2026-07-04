@@ -1,25 +1,25 @@
-import { useEffect, useState } from "react";
 import {
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
   type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
+import { useEffect, useState } from "react";
 
 interface DataTableProps<T> {
-  data: T[];
   columns: ColumnDef<T, unknown>[];
-  searchPlaceholder?: string;
+  data: T[];
   emptyMessage?: string;
+  /** Optional footer shown when rows are collapsed elsewhere. */
+  footer?: React.ReactNode;
   getRowId?: (row: T, index: number) => string;
   /** When set, search/filter expands the table (e.g. disables top-N collapse). */
   onSearchActiveChange?: (active: boolean) => void;
-  /** Optional footer shown when rows are collapsed elsewhere. */
-  footer?: React.ReactNode;
   searchable?: boolean;
+  searchPlaceholder?: string;
   tableClassName?: string;
 }
 
@@ -49,10 +49,14 @@ export default function DataTable<T>({
     getRowId: getRowId ? (row, index) => getRowId(row, index) : undefined,
     globalFilterFn: (row, _columnId, filter) => {
       const query = String(filter).trim().toLowerCase();
-      if (!query) return true;
+      if (!query) {
+        return true;
+      }
       return row.getVisibleCells().some((cell) => {
         const value = cell.getValue();
-        if (value == null) return false;
+        if (value == null) {
+          return false;
+        }
         return String(value).toLowerCase().includes(query);
       });
     },
@@ -65,29 +69,29 @@ export default function DataTable<T>({
   const rows = table.getRowModel().rows;
 
   return (
-    <div className="px-5 pb-5 pt-4">
+    <div className="px-5 pt-4 pb-5">
       {searchable ? (
         <div className="mb-4">
           <label className="input input-bordered input-sm flex w-full max-w-sm items-center gap-2 bg-base-100/80">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              className="size-4 shrink-0 opacity-50"
               aria-hidden
+              className="size-4 shrink-0 opacity-50"
+              fill="currentColor"
+              viewBox="0 0 16 16"
+              xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                fillRule="evenodd"
-                d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
                 clipRule="evenodd"
+                d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+                fillRule="evenodd"
               />
             </svg>
             <input
-              type="search"
               className="grow bg-transparent"
-              placeholder={searchPlaceholder}
-              value={globalFilter}
               onChange={(event) => table.setGlobalFilter(event.target.value)}
+              placeholder={searchPlaceholder}
+              type="search"
+              value={globalFilter}
             />
           </label>
         </div>
@@ -103,22 +107,36 @@ export default function DataTable<T>({
                   const sorted = header.column.getIsSorted();
                   return (
                     <th
+                      className={
+                        header.column.columnDef.meta?.alignRight
+                          ? "text-right"
+                          : undefined
+                      }
                       key={header.id}
-                      className={header.column.columnDef.meta?.alignRight ? "text-right" : undefined}
                     >
                       {header.isPlaceholder ? null : canSort ? (
                         <button
-                          type="button"
                           className="inline-flex items-center gap-1 hover:text-base-content"
                           onClick={header.column.getToggleSortingHandler()}
+                          type="button"
                         >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
-                          <span className="text-base-content/40" aria-hidden>
-                            {sorted === "asc" ? "↑" : sorted === "desc" ? "↓" : "↕"}
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                          <span aria-hidden className="text-base-content/40">
+                            {sorted === "asc"
+                              ? "↑"
+                              : sorted === "desc"
+                                ? "↓"
+                                : "↕"}
                           </span>
                         </button>
                       ) : (
-                        flexRender(header.column.columnDef.header, header.getContext())
+                        flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )
                       )}
                     </th>
                   );
@@ -128,11 +146,23 @@ export default function DataTable<T>({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className={row.original && (row.original as { isOthers?: boolean }).isOthers ? "text-base-content/70" : undefined}>
+              <tr
+                className={
+                  row.original &&
+                  (row.original as { isOthers?: boolean }).isOthers
+                    ? "text-base-content/70"
+                    : undefined
+                }
+                key={row.id}
+              >
                 {row.getVisibleCells().map((cell) => (
                   <td
+                    className={
+                      cell.column.columnDef.meta?.alignRight
+                        ? "text-right"
+                        : undefined
+                    }
                     key={cell.id}
-                    className={cell.column.columnDef.meta?.alignRight ? "text-right" : undefined}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>
@@ -141,7 +171,10 @@ export default function DataTable<T>({
             ))}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="text-center text-base-content/50">
+                <td
+                  className="text-center text-base-content/50"
+                  colSpan={columns.length}
+                >
                   {emptyMessage}
                 </td>
               </tr>

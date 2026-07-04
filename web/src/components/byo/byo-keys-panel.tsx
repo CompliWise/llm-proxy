@@ -1,15 +1,13 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import ByoBanButton from "./ban-by-key-button";
+import { useMemo } from "react";
+import { useBYOKeys } from "../../hooks/queries";
+import { useByoBanActions } from "../../hooks/use-byo-ban-actions";
+import { formatUsd, MASKED_CREDENTIAL_HASH_TITLE } from "../../lib/format";
+import type { BYOKeyRecord } from "../../types";
 import DataTable from "../ui/data-table";
 import { MaskedCredentialId } from "../ui/masked-credential-id";
 import { ProviderBadge, StatusBadge } from "../ui/page-header";
-import { useBYOKeys } from "../../hooks/queries";
-import { useByoBanActions } from "../../hooks/use-byo-ban-actions";
-import { permissions } from "../../lib/permissions";
-import { formatUsd, MASKED_CREDENTIAL_HASH_TITLE } from "../../lib/format";
-import type { BYOKeyRecord } from "../../types";
+import ByoBanButton from "./ban-by-key-button";
 
 function sourceLabel(source: string): string {
   switch (source) {
@@ -40,12 +38,19 @@ export default function ByoKeysPanel() {
         id: "masked_id",
         accessorKey: "masked_id",
         header: () => (
-          <span className="inline-flex items-center gap-1" title={MASKED_CREDENTIAL_HASH_TITLE}>
+          <span
+            className="inline-flex items-center gap-1"
+            title={MASKED_CREDENTIAL_HASH_TITLE}
+          >
             Hashed ID
-            <span className="badge badge-ghost badge-xs font-normal normal-case">FNV-1a</span>
+            <span className="badge badge-ghost badge-xs font-normal normal-case">
+              FNV-1a
+            </span>
           </span>
         ),
-        cell: ({ getValue }) => <MaskedCredentialId value={getValue<string>()} />,
+        cell: ({ getValue }) => (
+          <MaskedCredentialId value={getValue<string>()} />
+        ),
       },
       {
         id: "status",
@@ -88,7 +93,7 @@ export default function ByoKeysPanel() {
         cell: ({ getValue }) => (
           <div className="flex flex-wrap gap-1">
             {getValue<string[]>().map((source) => (
-              <span key={source} className="badge badge-ghost badge-sm">
+              <span className="badge badge-ghost badge-sm" key={source}>
                 {sourceLabel(source)}
               </span>
             ))}
@@ -102,14 +107,14 @@ export default function ByoKeysPanel() {
         meta: { alignRight: true },
         cell: ({ row }) => (
           <ByoBanButton
+            actions={byoBanActions}
             maskedId={row.original.masked_id}
             provider={row.original.provider}
-            actions={byoBanActions}
           />
         ),
       },
     ],
-    [byoBanActions],
+    [byoBanActions]
   );
 
   if (!byoBanActions.canManage) {
@@ -125,13 +130,15 @@ export default function ByoKeysPanel() {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-base-content/55">{MASKED_CREDENTIAL_HASH_TITLE}</p>
+      <p className="text-base-content/55 text-xs">
+        {MASKED_CREDENTIAL_HASH_TITLE}
+      </p>
       <DataTable
-        data={rows}
         columns={columns}
-        searchPlaceholder="Filter BYO keys…"
+        data={rows}
         emptyMessage="No bring-your-own keys observed yet"
         getRowId={(row) => `${row.provider}:${row.hash}`}
+        searchPlaceholder="Filter BYO keys…"
       />
     </div>
   );

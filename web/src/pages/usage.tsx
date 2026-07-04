@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
-
-import UsageTable from "../components/usage/usage-table";
-import { BarChart, ChartCard, DonutChart, TrendChart } from "../components/charts";
+import {
+  BarChart,
+  ChartCard,
+  DonutChart,
+  TrendChart,
+} from "../components/charts";
 import { chartPalette } from "../components/charts/chart-setup";
 import {
   type DataSource,
@@ -9,25 +12,32 @@ import {
   RangeToggle,
   trendChartSource,
 } from "../components/ui/data-source";
-import PageHeader, { ErrorAlert, LiveIndicator, LoadingBlock } from "../components/ui/page-header";
+import PageHeader, {
+  ErrorAlert,
+  LiveIndicator,
+  LoadingBlock,
+} from "../components/ui/page-header";
+import UsageTable from "../components/usage/usage-table";
 import { useKeys, useUsage } from "../hooks/queries";
 import { LIVE_TREND_CHART_SUBTITLE, useHistory } from "../hooks/use-history";
 import {
+  aggScopeMap,
   DAILY_HISTORY_SUBTITLE,
   HOURLY_HISTORY_FALLBACK_SUBTITLE,
   HOURLY_HISTORY_SUBTITLE,
-  type RangeKey,
-  RANGE_OPTIONS,
-  aggScopeMap,
   hourlySeries,
   pickToday,
+  RANGE_OPTIONS,
+  type RangeKey,
   scalarSeries,
 } from "../lib/daily-history";
 import { compact, scopeKind, scopeLabel } from "../lib/format";
 import type { DailyHistoryRow, UsageScopeCounter } from "../types";
 
 function rangeLabel(range: RangeKey): string {
-  return range === "today" ? "today" : `last ${range === "7d" ? "7" : "30"} days`;
+  return range === "today"
+    ? "today"
+    : `last ${range === "7d" ? "7" : "30"} days`;
 }
 
 const DONUT_COLORS = [
@@ -40,7 +50,7 @@ const DONUT_COLORS = [
 
 function rowsForKind(
   counters: Record<string, UsageScopeCounter> | undefined,
-  kind: string,
+  kind: string
 ) {
   return Object.entries(counters ?? {})
     .filter(([scope]) => scopeKind(scope) === kind)
@@ -56,7 +66,7 @@ function rowsForKind(
 function redisRows(
   history: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  field: string,
+  field: string
 ) {
   return aggScopeMap(history, range, field).map((s) => ({
     scope: s.scope,
@@ -67,7 +77,8 @@ function redisRows(
 }
 
 export default function UsagePage() {
-  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } = useUsage();
+  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } =
+    useUsage();
   const keys = useKeys();
   const [range, setRange] = useState<RangeKey>("today");
 
@@ -75,113 +86,167 @@ export default function UsagePage() {
   const history = stats?.daily_history;
   const hasRedis = Boolean(stats?.daily_history_available);
   const counters = stats?.counters;
-  const global = counters?.["global"];
-  const memoryRequests = Math.max(stats?.requests_today ?? 0, global?.requests ?? 0);
+  const global = counters?.global;
+  const memoryRequests = Math.max(
+    stats?.requests_today ?? 0,
+    global?.requests ?? 0
+  );
   const memoryTokens = Math.max(stats?.tokens_today ?? 0, global?.tokens ?? 0);
 
   const totalTokensPick = pickToday(
     stats?.available ? memoryTokens : undefined,
     history,
     "tokens_today",
-    hasRedis,
+    hasRedis
   );
   const totalReqPick = pickToday(
     stats?.available ? memoryRequests : undefined,
     history,
     "requests_today",
-    hasRedis,
+    hasRedis
   );
   const totalTokens = totalTokensPick.value;
   const totalRequests = totalReqPick.value;
 
   const tokenHistory = useHistory(stats?.available ? totalTokens : undefined);
-  const dailyTokens = useMemo(() => scalarSeries(history, "tokens_today", range), [history, range]);
-  const useDailyChart = Boolean(hasRedis && range !== "today" && dailyTokens.available);
+  const dailyTokens = useMemo(
+    () => scalarSeries(history, "tokens_today", range),
+    [history, range]
+  );
+  const useDailyChart = Boolean(
+    hasRedis && range !== "today" && dailyTokens.available
+  );
   const hourlyTokens = useMemo(
     () => hourlySeries(stats?.hourly_history, "tokens_today"),
-    [stats?.hourly_history],
+    [stats?.hourly_history]
   );
-  const useHourlyChart = Boolean(stats?.hourly_history_available && range === "today" && hourlyTokens.available);
+  const useHourlyChart = Boolean(
+    stats?.hourly_history_available &&
+      range === "today" &&
+      hourlyTokens.available
+  );
 
   const memByModel = useMemo(() => rowsForKind(counters, "model"), [counters]);
   const useRedisBreakdown = hasRedis || range !== "today";
   const breakdownSource: DataSource = useRedisBreakdown ? "redis" : "memory";
 
   const byModel = useMemo(
-    () => (useRedisBreakdown ? redisRows(history, range, "by_model") : memByModel),
-    [useRedisBreakdown, history, range, memByModel],
+    () =>
+      useRedisBreakdown ? redisRows(history, range, "by_model") : memByModel,
+    [useRedisBreakdown, history, range, memByModel]
   );
   const byProvider = useMemo(
     () =>
-      useRedisBreakdown ? redisRows(history, range, "by_provider") : rowsForKind(counters, "provider"),
-    [useRedisBreakdown, history, range, counters],
+      useRedisBreakdown
+        ? redisRows(history, range, "by_provider")
+        : rowsForKind(counters, "provider"),
+    [useRedisBreakdown, history, range, counters]
   );
   const byUser = useMemo(
-    () => (useRedisBreakdown ? redisRows(history, range, "by_user") : rowsForKind(counters, "user")),
-    [useRedisBreakdown, history, range, counters],
+    () =>
+      useRedisBreakdown
+        ? redisRows(history, range, "by_user")
+        : rowsForKind(counters, "user"),
+    [useRedisBreakdown, history, range, counters]
   );
   const byKey = useMemo(
-    () => (useRedisBreakdown ? redisRows(history, range, "by_key") : rowsForKind(counters, "key")),
-    [useRedisBreakdown, history, range, counters],
+    () =>
+      useRedisBreakdown
+        ? redisRows(history, range, "by_key")
+        : rowsForKind(counters, "key"),
+    [useRedisBreakdown, history, range, counters]
   );
   const donutTokens = byProvider.reduce((sum, r) => sum + r.tokens, 0);
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading) {
+    return <LoadingBlock />;
+  }
   if (error) {
-    return <ErrorAlert message={error instanceof Error ? error.message : "Failed to load usage"} />;
+    return (
+      <ErrorAlert
+        message={
+          error instanceof Error ? error.message : "Failed to load usage"
+        }
+      />
+    );
   }
 
-  const avgTokens = totalRequests > 0 ? Math.round(totalTokens / totalRequests) : 0;
+  const avgTokens =
+    totalRequests > 0 ? Math.round(totalTokens / totalRequests) : 0;
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Usage"
-        description="Request and token volume by model, provider, and user (UTC day rollup from cost tracking)."
         actions={
           <div className="flex items-center gap-3">
-            <RangeToggle value={range} options={RANGE_OPTIONS} onChange={setRange} />
-            <LiveIndicator updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
+            <RangeToggle
+              onChange={setRange}
+              options={RANGE_OPTIONS}
+              value={range}
+            />
+            <LiveIndicator
+              fetching={isFetching}
+              onRefresh={() => refetch()}
+              updatedAt={dataUpdatedAt}
+            />
           </div>
         }
+        description="Request and token volume by model, provider, and user (UTC day rollup from cost tracking)."
+        title="Usage"
       />
 
-      {!data?.enabled ? (
+      {data?.enabled ? null : (
         <div className="alert alert-info">
           <span>
-            Usage stats require <code className="mx-1">features.cost_tracking</code> — enable it and restart the
-            proxy.
+            Usage stats require{" "}
+            <code className="mx-1">features.cost_tracking</code> — enable it and
+            restart the proxy.
           </span>
         </div>
-      ) : null}
+      )}
 
-      {!stats?.available ? (
+      {stats?.available ? null : (
         <div className="alert alert-info">
-          <span>Live usage stats are inactive — no tracked requests yet today.</span>
+          <span>
+            Live usage stats are inactive — no tracked requests yet today.
+          </span>
         </div>
-      ) : null}
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <LiveStat
+          hint={
+            stats?.day === new Date().toISOString().slice(0, 10)
+              ? "UTC today"
+              : `UTC · ${stats?.day ?? "today"}`
+          }
+          source={totalReqPick.source}
           title="Requests"
           value={compact(totalRequests)}
-          hint={stats?.day === new Date().toISOString().slice(0, 10) ? "UTC today" : `UTC · ${stats?.day ?? "today"}`}
-          source={totalReqPick.source}
         />
-        <LiveStat title="Tokens" value={compact(totalTokens)} hint="UTC day" source={totalTokensPick.source} />
-        <LiveStat title="Avg tokens / req" value={compact(avgTokens)} source={totalTokensPick.source} />
         <LiveStat
-          title="Active models"
-          value={byModel.length}
+          hint="UTC day"
+          source={totalTokensPick.source}
+          title="Tokens"
+          value={compact(totalTokens)}
+        />
+        <LiveStat
+          source={totalTokensPick.source}
+          title="Avg tokens / req"
+          value={compact(avgTokens)}
+        />
+        <LiveStat
           hint={`${byProvider.length} providers · ${rangeLabel(range)}`}
           source={breakdownSource}
+          title="Active models"
+          value={byModel.length}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ChartCard
-            title="Token volume"
+            source={trendChartSource(useDailyChart || useHourlyChart)}
             subtitle={
               useDailyChart
                 ? DAILY_HISTORY_SUBTITLE
@@ -191,66 +256,97 @@ export default function UsagePage() {
                     ? HOURLY_HISTORY_FALLBACK_SUBTITLE
                     : LIVE_TREND_CHART_SUBTITLE
             }
-            source={trendChartSource(useDailyChart || useHourlyChart)}
+            title="Token volume"
           >
             {useDailyChart ? (
               <BarChart
+                colors={dailyTokens.labels.map(() => chartPalette.primary())}
+                label="Daily tokens"
                 labels={dailyTokens.labels}
                 values={dailyTokens.values}
-                label="Daily tokens"
-                colors={dailyTokens.labels.map(() => chartPalette.primary())}
               />
             ) : useHourlyChart ? (
               <BarChart
+                colors={hourlyTokens.labels.map(() => chartPalette.primary())}
+                label="Hourly tokens"
                 labels={hourlyTokens.labels}
                 values={hourlyTokens.values}
-                label="Hourly tokens"
-                colors={hourlyTokens.labels.map(() => chartPalette.primary())}
               />
             ) : (
-              <TrendChart points={tokenHistory} label="Tokens" color={chartPalette.primary()} />
+              <TrendChart
+                color={chartPalette.primary()}
+                label="Tokens"
+                points={tokenHistory}
+              />
             )}
           </ChartCard>
         </div>
         <ChartCard
-          title="Tokens by provider"
-          subtitle={`Share of total · ${rangeLabel(range)}`}
           source={breakdownSource}
+          subtitle={`Share of total · ${rangeLabel(range)}`}
+          title="Tokens by provider"
         >
           <DonutChart
+            centerLabel="tokens"
+            centerValue={compact(donutTokens)}
+            colors={byProvider.map((_, i) =>
+              DONUT_COLORS[i % DONUT_COLORS.length]()
+            )}
             labels={byProvider.map((r) => r.label)}
             values={byProvider.map((r) => r.tokens)}
-            colors={byProvider.map((_, i) => DONUT_COLORS[i % DONUT_COLORS.length]())}
-            centerValue={compact(donutTokens)}
-            centerLabel="tokens"
           />
         </ChartCard>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <ChartCard title="Requests by model" subtitle={`Top models · ${rangeLabel(range)}`} source={breakdownSource}>
+        <ChartCard
+          source={breakdownSource}
+          subtitle={`Top models · ${rangeLabel(range)}`}
+          title="Requests by model"
+        >
           <BarChart
-            labels={byModel.slice(0, 8).map((r) => r.label)}
-            values={byModel.slice(0, 8).map((r) => r.requests)}
-            label="Requests"
             colors={byModel.slice(0, 8).map(() => chartPalette.primary())}
             horizontal
+            label="Requests"
+            labels={byModel.slice(0, 8).map((r) => r.label)}
+            values={byModel.slice(0, 8).map((r) => r.requests)}
           />
         </ChartCard>
-        <ChartCard title="Tokens by model" subtitle={`Top models · ${rangeLabel(range)}`} source={breakdownSource}>
+        <ChartCard
+          source={breakdownSource}
+          subtitle={`Top models · ${rangeLabel(range)}`}
+          title="Tokens by model"
+        >
           <BarChart
-            labels={byModel.slice(0, 8).map((r) => r.label)}
-            values={byModel.slice(0, 8).map((r) => r.tokens)}
-            label="Tokens"
             colors={byModel.slice(0, 8).map(() => chartPalette.info())}
             horizontal
+            label="Tokens"
+            labels={byModel.slice(0, 8).map((r) => r.label)}
+            values={byModel.slice(0, 8).map((r) => r.tokens)}
           />
         </ChartCard>
       </div>
 
-      <UsageTable title="By model" rows={byModel} source={breakdownSource} range={range} />
-      <UsageTable title="By key" rows={byKey} keys={keys.data} linkKeys source={breakdownSource} range={range} />
-      <UsageTable title="By user" rows={byUser} source={breakdownSource} range={range} />
+      <UsageTable
+        range={range}
+        rows={byModel}
+        source={breakdownSource}
+        title="By model"
+      />
+      <UsageTable
+        keys={keys.data}
+        linkKeys
+        range={range}
+        rows={byKey}
+        source={breakdownSource}
+        title="By key"
+      />
+      <UsageTable
+        range={range}
+        rows={byUser}
+        source={breakdownSource}
+        title="By user"
+      />
     </div>
   );
 }

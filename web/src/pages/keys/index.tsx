@@ -1,11 +1,11 @@
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-
-import KeyRequestsPanel from "../../components/keys/key-requests-panel";
-import ApiKeysModal from "../../components/keys/api-keys-modal";
 import ByoKeysPanel from "../../components/byo/byo-keys-panel";
+import ApiKeysModal from "../../components/keys/api-keys-modal";
+import KeyRequestsPanel from "../../components/keys/key-requests-panel";
 import KeysTable from "../../components/keys/keys-table";
 import RequestKeyModal from "../../components/keys/request-key-modal";
+import { CopyButton } from "../../components/ui/copy-button";
 import {
   DeployIcon,
   KeyRequestsTabIcon,
@@ -13,28 +13,13 @@ import {
   RequestKeyTabIcon,
   WarningTriangleIcon,
 } from "../../components/ui/key-tab-icons";
+import { maskKey } from "../../components/ui/masked-key";
 import PageHeader, {
   EmptyState,
   ErrorAlert,
   LoadingBlock,
 } from "../../components/ui/page-header";
-import { CopyButton } from "../../components/ui/copy-button";
-import { maskKey } from "../../components/ui/masked-key";
 import { useToast } from "../../components/ui/toast";
-import { formatShareExpiry } from "../../lib/share-expiry";
-import {
-  costLimitsFromForm,
-  defaultKeyForm,
-  formPiiOffRequiresBedrock,
-  formatRateLimits,
-  keyFormFromRecord,
-  KEY_PROVIDERS,
-  piiFromFormValue,
-  rateLimitsFromForm,
-  VIEWER_PROVIDERS,
-  type KeyFormState,
-} from "../../lib/key-form";
-import { permissions } from "../../lib/permissions";
 import {
   useBYOKeys,
   useConfig,
@@ -49,6 +34,20 @@ import {
   useProvisioning,
   useUpdateKey,
 } from "../../hooks/queries";
+import {
+  costLimitsFromForm,
+  defaultKeyForm,
+  formatRateLimits,
+  formPiiOffRequiresBedrock,
+  KEY_PROVIDERS,
+  type KeyFormState,
+  keyFormFromRecord,
+  piiFromFormValue,
+  rateLimitsFromForm,
+  VIEWER_PROVIDERS,
+} from "../../lib/key-form";
+import { permissions } from "../../lib/permissions";
+import { formatShareExpiry } from "../../lib/share-expiry";
 import type {
   APIKey,
   CreateAPIKeyRequest,
@@ -63,10 +62,14 @@ type KeysTab = "keys" | "requests" | "byo-keys";
 function parseKeysTab(
   value: string | null,
   canReviewRequests: boolean,
-  canManageByo: boolean,
+  canManageByo: boolean
 ): KeysTab {
-  if (value === "requests" && canReviewRequests) return "requests";
-  if ((value === "byo-keys" || value === "byo-bans") && canManageByo) return "byo-keys";
+  if (value === "requests" && canReviewRequests) {
+    return "requests";
+  }
+  if ((value === "byo-keys" || value === "byo-bans") && canManageByo) {
+    return "byo-keys";
+  }
   return "keys";
 }
 
@@ -76,7 +79,10 @@ function keysTabClass(active: boolean): string {
     : "btn btn-ghost btn-sm gap-2 text-base-content/70 hover:text-base-content";
 }
 
-function keyStatsDescription(hasCostRedis: boolean, hasPiiRedis: boolean): string {
+function keyStatsDescription(
+  hasCostRedis: boolean,
+  hasPiiRedis: boolean
+): string {
   if (hasCostRedis && hasPiiRedis) {
     return "Key registry is DynamoDB. Per-key spend and PII stats use Redis rollups (today updates live).";
   }
@@ -100,7 +106,7 @@ export default function KeysPage() {
   const hasPiiRedis = Boolean(piiData?.stats?.daily_history_available);
   const globalPiiEnabled = Boolean(config?.features?.pii_redact);
   const canBypassPiiBedrockPolicy = Boolean(
-    me?.can_bypass_pii_off_non_bedrock_policy,
+    me?.can_bypass_pii_off_non_bedrock_policy
   );
   const isViewer = permissions.isViewer(me?.role);
   const isAdmin = permissions.isAdmin(me?.role);
@@ -109,10 +115,16 @@ export default function KeysPage() {
   const canRequestServiceKey = permissions.canRequestServiceKey(me?.role);
   const canReviewKeyRequests = permissions.canReviewKeyRequests(me?.role);
   const canManageByo = permissions.canManageByo(me?.role);
-  const canBulkGeneratePersonalKeys = permissions.canBulkGeneratePersonalKeys(me?.role);
+  const canBulkGeneratePersonalKeys = permissions.canBulkGeneratePersonalKeys(
+    me?.role
+  );
   const canBulkGenerateOrgKeys = permissions.canBulkGenerateOrgKeys(me?.role);
   const bulkCreatesPersonalKeys = canBulkGeneratePersonalKeys;
-  const tab = parseKeysTab(searchParams.get("tab"), canReviewKeyRequests, canManageByo);
+  const tab = parseKeysTab(
+    searchParams.get("tab"),
+    canReviewKeyRequests,
+    canManageByo
+  );
   const { data: pendingRequests = [] } = useKeyRequests("pending");
   const { data: byoKeys = [] } = useBYOKeys();
   const bannedByoCount = byoKeys.filter((row) => row.banned).length;
@@ -129,10 +141,15 @@ export default function KeysPage() {
   };
 
   useEffect(() => {
-    if (!canRequestServiceKey || handledRequestDeepLink.current) return;
+    if (!canRequestServiceKey || handledRequestDeepLink.current) {
+      return;
+    }
     const openRequest =
-      searchParams.get("request") === "1" || searchParams.get("tab") === "request";
-    if (!openRequest) return;
+      searchParams.get("request") === "1" ||
+      searchParams.get("tab") === "request";
+    if (!openRequest) {
+      return;
+    }
     handledRequestDeepLink.current = true;
     setRequestKeyModalOpen(true);
     const next = new URLSearchParams(searchParams);
@@ -159,7 +176,7 @@ export default function KeysPage() {
   const [manualKeyEntry, setManualKeyEntry] = useState(false);
   const [personalMode, setPersonalMode] = useState(false);
   const [shareResult, setShareResult] = useState<ShareCreateResponse | null>(
-    null,
+    null
   );
   const [sharingKey, setSharingKey] = useState<string | null>(null);
   const [bulkGenerating, setBulkGenerating] = useState(false);
@@ -175,7 +192,7 @@ export default function KeysPage() {
   const piiOffRequiresBedrock = formPiiOffRequiresBedrock(
     form.redact_pii,
     globalPiiEnabled,
-    canBypassPiiBedrockPolicy,
+    canBypassPiiBedrockPolicy
   );
 
   const anthropicProvisioning = provisioning?.providers?.anthropic;
@@ -224,7 +241,9 @@ export default function KeysPage() {
   const myPersonalProviders = useMemo(() => {
     const set = new Set<Provider>();
     const email = me?.email?.toLowerCase();
-    if (!email) return set;
+    if (!email) {
+      return set;
+    }
     for (const k of keys) {
       if (
         k.tags?.personal === "true" &&
@@ -241,21 +260,21 @@ export default function KeysPage() {
     if (isViewer) {
       const owned = new Set(keys.map((k) => k.provider));
       providers = VIEWER_PROVIDERS.filter(
-        (p) => !owned.has(p) || p === editingKey?.provider,
+        (p) => !owned.has(p) || p === editingKey?.provider
       );
     } else if (personalMode) {
       providers = VIEWER_PROVIDERS.filter((p) => !myPersonalProviders.has(p));
-    } else if (!piiOffRequiresBedrock) {
-      providers = [...PROVIDERS];
-    } else {
+    } else if (piiOffRequiresBedrock) {
       providers = ["bedrock"];
+    } else {
+      providers = [...PROVIDERS];
     }
     if ((isViewer || personalMode) && provisioning?.enabled) {
       return providers.filter(
-        (p) => provisioning.providers?.[p]?.auto_provision,
+        (p) => provisioning.providers?.[p]?.auto_provision
       );
     }
-    if (!provisionedKeysOnly || !provisioning?.enabled) {
+    if (!(provisionedKeysOnly && provisioning?.enabled)) {
       return providers;
     }
     return providers.filter((p) => provisioning.providers?.[p]?.auto_provision);
@@ -287,7 +306,7 @@ export default function KeysPage() {
     return VIEWER_PROVIDERS.filter(
       (provider) =>
         provisioning.providers?.[provider]?.auto_provision &&
-        !myPersonalProviders.has(provider),
+        !myPersonalProviders.has(provider)
     );
   }, [provisioning, myPersonalProviders]);
 
@@ -306,7 +325,7 @@ export default function KeysPage() {
 
   const providerAutoProvision = Boolean(
     provisioning?.enabled &&
-    provisioning.providers?.[form.provider]?.auto_provision,
+      provisioning.providers?.[form.provider]?.auto_provision
   );
   const useAutoProvision =
     treatAsPersonal || provisionedKeysOnly
@@ -325,7 +344,7 @@ export default function KeysPage() {
     } catch (err) {
       push(
         err instanceof Error ? err.message : "Failed to create share link",
-        "error",
+        "error"
       );
     } finally {
       setSharingKey(null);
@@ -374,14 +393,16 @@ export default function KeysPage() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    const { daily_cost_limit: dailyCostLimit, monthly_cost_limit: monthlyCostLimit } =
-      costLimitsFromForm(form);
+    const {
+      daily_cost_limit: dailyCostLimit,
+      monthly_cost_limit: monthlyCostLimit,
+    } = costLimitsFromForm(form);
     const activeCostLimit =
       form.cost_limit_period === "monthly" ? monthlyCostLimit : dailyCostLimit;
     if (editorMaxCents > 0 && activeCostLimit > editorMaxCents) {
       push(
         `${form.cost_limit_period === "monthly" ? "Monthly" : "Daily"} cost limit cannot exceed $${editorMaxDollars}`,
-        "error",
+        "error"
       );
       return;
     }
@@ -389,13 +410,7 @@ export default function KeysPage() {
 
     try {
       if (editingKey) {
-        if (!canManagePolicy) {
-          await updateKey.mutateAsync({
-            key: editingKey.key,
-            body: { description: form.description },
-          });
-          push("Key updated", "success");
-        } else {
+        if (canManagePolicy) {
           await updateKey.mutateAsync({
             key: editingKey.key,
             body: {
@@ -408,12 +423,18 @@ export default function KeysPage() {
             },
           });
           push("Key updated", "success");
+        } else {
+          await updateKey.mutateAsync({
+            key: editingKey.key,
+            body: { description: form.description },
+          });
+          push("Key updated", "success");
         }
       } else if (treatAsPersonal) {
         if (!useAutoProvision) {
           push(
             "Automatic key provisioning is not available for this provider",
-            "error",
+            "error"
           );
           return;
         }
@@ -432,7 +453,7 @@ export default function KeysPage() {
           if (provisionedKeysOnly) {
             push(
               "Automatic key provisioning is not available for this provider",
-              "error",
+              "error"
             );
             return;
           }
@@ -468,7 +489,9 @@ export default function KeysPage() {
   };
 
   const onDelete = async () => {
-    if (!deleteTarget) return;
+    if (!deleteTarget) {
+      return;
+    }
     try {
       await deleteKey.mutateAsync(deleteTarget.key);
       push("Key deleted", "success");
@@ -496,8 +519,10 @@ export default function KeysPage() {
               ...(isAdmin ? { personal: true } : {}),
             });
           } else if (isEditor) {
-            const { daily_cost_limit: dailyCostLimit, monthly_cost_limit: monthlyCostLimit } =
-              costLimitsFromForm(defaultKeyForm);
+            const {
+              daily_cost_limit: dailyCostLimit,
+              monthly_cost_limit: monthlyCostLimit,
+            } = costLimitsFromForm(defaultKeyForm);
             const activeCostLimit =
               defaultKeyForm.cost_limit_period === "monthly"
                 ? monthlyCostLimit
@@ -505,7 +530,7 @@ export default function KeysPage() {
             if (editorMaxCents > 0 && activeCostLimit > editorMaxCents) {
               push(
                 `${defaultKeyForm.cost_limit_period === "monthly" ? "Monthly" : "Daily"} cost limit cannot exceed $${editorMaxDollars}`,
-                "error",
+                "error"
               );
               return;
             }
@@ -534,13 +559,13 @@ export default function KeysPage() {
           bulkCreatesPersonalKeys
             ? `Created ${created} personal key${created === 1 ? "" : "s"}`
             : `Created ${created} key${created === 1 ? "" : "s"}`,
-          "success",
+          "success"
         );
       }
       if (failed > 0) {
         push(
           `Failed to create ${failed} key${failed === 1 ? "" : "s"}`,
-          "error",
+          "error"
         );
       }
     } finally {
@@ -556,24 +581,16 @@ export default function KeysPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isViewer ? "My API Keys" : "API Keys"}
-        description={
-          isViewer
-            ? viewerMonthlyCents > 0
-              ? `Personal proxy keys (one per provider). Monthly spend is capped at ${viewerMonthlyLimitLabel}.`
-              : "Personal proxy keys (one per provider). Monthly spend is unlimited."
-            : keyStatsDescription(hasCostRedis, hasPiiRedis)
-        }
         actions={
           tab === "keys" ? (
             <>
-              {!isViewer ? (
+              {isViewer ? null : (
                 <select
                   className="select select-bordered select-sm"
-                  value={providerFilter}
                   onChange={(event) =>
                     setProviderFilter(event.target.value as Provider | "")
                   }
+                  value={providerFilter}
                 >
                   <option value="">All providers</option>
                   {PROVIDERS.map((provider) => (
@@ -582,22 +599,22 @@ export default function KeysPage() {
                     </option>
                   ))}
                 </select>
-              ) : null}
-              {!isViewer ? (
+              )}
+              {isViewer ? null : (
                 <button
-                  type="button"
                   className="btn btn-primary btn-sm"
                   disabled={!canCreateKey}
                   onClick={openCreate}
+                  type="button"
                 >
                   Create key
                 </button>
-              ) : null}
+              )}
               {canRequestServiceKey ? (
                 <button
-                  type="button"
                   className={`btn btn-sm gap-2 ${isViewer ? "btn-primary" : "btn-outline"}`}
                   onClick={() => setRequestKeyModalOpen(true)}
+                  type="button"
                 >
                   <RequestKeyTabIcon />
                   Request a key
@@ -606,72 +623,92 @@ export default function KeysPage() {
             </>
           ) : null
         }
+        description={
+          isViewer
+            ? viewerMonthlyCents > 0
+              ? `Personal proxy keys (one per provider). Monthly spend is capped at ${viewerMonthlyLimitLabel}.`
+              : "Personal proxy keys (one per provider). Monthly spend is unlimited."
+            : keyStatsDescription(hasCostRedis, hasPiiRedis)
+        }
+        title={isViewer ? "My API Keys" : "API Keys"}
       />
 
       {canReviewKeyRequests || canManageByo ? (
         <div className="glass-panel p-2">
-          <div role="tablist" className="flex flex-wrap gap-2" aria-label="API keys sections">
+          <div
+            aria-label="API keys sections"
+            className="flex flex-wrap gap-2"
+            role="tablist"
+          >
             <button
-              type="button"
-              role="tab"
               aria-selected={tab === "keys"}
               className={keysTabClass(tab === "keys")}
               onClick={() => setTab("keys")}
+              role="tab"
+              type="button"
             >
               <KeyTabIcon />
               Keys
             </button>
             <button
-              type="button"
-              role="tab"
               aria-selected={tab === "byo-keys"}
               className={keysTabClass(tab === "byo-keys")}
               onClick={() => setTab("byo-keys")}
+              role="tab"
+              type="button"
             >
               BYO keys
               {byoKeys.length > 0 ? (
-                <span className="badge badge-ghost badge-sm border-0">{byoKeys.length}</span>
+                <span className="badge badge-ghost badge-sm border-0">
+                  {byoKeys.length}
+                </span>
               ) : null}
               {bannedByoCount > 0 ? (
-                <span className="badge badge-error badge-sm border-0">{bannedByoCount} banned</span>
+                <span className="badge badge-error badge-sm border-0">
+                  {bannedByoCount} banned
+                </span>
               ) : null}
             </button>
             <button
-              type="button"
-              role="tab"
               aria-selected={tab === "requests"}
               className={keysTabClass(tab === "requests")}
               onClick={() => setTab("requests")}
+              role="tab"
+              type="button"
             >
               <KeyRequestsTabIcon />
               Key requests
               {pendingRequestCount > 0 ? (
-                <span className="badge badge-warning badge-sm border-0">{pendingRequestCount}</span>
+                <span className="badge badge-warning badge-sm border-0">
+                  {pendingRequestCount}
+                </span>
               ) : null}
             </button>
           </div>
         </div>
       ) : null}
 
-      {tab === "keys" && (canRequestServiceKey || canBulkGeneratePersonalKeys) ? (
+      {tab === "keys" &&
+      (canRequestServiceKey || canBulkGeneratePersonalKeys) ? (
         canRequestServiceKey ? (
           <div className="flex flex-wrap items-center gap-3 rounded-xl border-2 border-warning/50 bg-warning/15 px-4 py-3 shadow-sm lg:flex-nowrap">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning text-warning-content">
               <WarningTriangleIcon className="h-5 w-5" />
             </div>
-            <div className="min-w-0 flex-1 text-sm leading-snug text-base-content/80">
+            <div className="min-w-0 flex-1 text-base-content/80 text-sm leading-snug">
               <span className="font-semibold text-warning-content">
                 Personal keys are for local testing only.
               </span>{" "}
               <span className="font-semibold text-error">
                 Do not deploy with them.
               </span>{" "}
-              Request an org-wide key with a specific use case; admins will name and provision it.
+              Request an org-wide key with a specific use case; admins will name
+              and provision it.
             </div>
             <button
-              type="button"
               className="btn btn-warning btn-sm shrink-0 gap-2 shadow-sm"
               onClick={() => setRequestKeyModalOpen(true)}
+              type="button"
             >
               <DeployIcon />
               Request a key
@@ -679,19 +716,19 @@ export default function KeysPage() {
           </div>
         ) : (
           <div className="flex gap-3 rounded-xl border border-info/40 bg-info/10 px-4 py-3">
-            <div className="flex h-9 w-9 shrink-0 self-center items-center justify-center rounded-full bg-info/20 text-info">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-full bg-info/20 text-info">
               <KeyTabIcon className="h-5 w-5" />
             </div>
-            <div className="min-w-0 flex-1 text-sm leading-snug text-base-content/80">
-              Use <span className="font-medium">Generate Personal Keys</span> below
-              or toggle <span className="font-medium">Personal key</span> in Create
-              key for your own testing keys (one per provider, capped at{" "}
-              {viewerMonthlyLimitLabel}/month). Org-wide service keys stay separate.
-              Review pending requests on the{" "}
+            <div className="min-w-0 flex-1 text-base-content/80 text-sm leading-snug">
+              Use <span className="font-medium">Generate Personal Keys</span>{" "}
+              below or toggle <span className="font-medium">Personal key</span>{" "}
+              in Create key for your own testing keys (one per provider, capped
+              at {viewerMonthlyLimitLabel}/month). Org-wide service keys stay
+              separate. Review pending requests on the{" "}
               <button
-                type="button"
                 className="link link-info inline-flex items-center gap-1 align-middle font-medium"
                 onClick={() => setTab("requests")}
+                type="button"
               >
                 <KeyRequestsTabIcon className="h-4 w-4" />
                 Key requests
@@ -706,8 +743,8 @@ export default function KeysPage() {
       {tab === "byo-keys" && canManageByo ? <ByoKeysPanel /> : null}
 
       <RequestKeyModal
-        open={requestKeyModalOpen}
         onClose={() => setRequestKeyModalOpen(false)}
+        open={requestKeyModalOpen}
       />
 
       {tab === "keys" ? (
@@ -723,17 +760,17 @@ export default function KeysPage() {
           {showBulkGenerate && visibleKeys.length > 0 ? (
             <div className="glass-panel flex flex-col items-center gap-3 px-6 py-8 text-center sm:items-start sm:text-left">
               <button
-                type="button"
                 className="btn btn-primary btn-lg min-h-16 w-full px-8 text-lg sm:w-auto"
                 disabled={bulkGenerateBusy}
                 onClick={onBulkGeneratePersonalKeys}
+                type="button"
               >
                 {bulkGenerateBusy ? (
                   <span className="loading loading-spinner loading-md" />
                 ) : null}
                 {bulkGenerateLabel}
               </button>
-              <p className="max-w-2xl text-sm text-base-content/60">
+              <p className="max-w-2xl text-base-content/60 text-sm">
                 {bulkCreatesPersonalKeys
                   ? `Creates one auto-provisioned personal key for each provider you do not have yet (${bulkTargetProviders.join(", ")}).`
                   : `Creates one auto-provisioned org key for each provider without a key yet (${bulkTargetProviders.join(", ")}).`}
@@ -746,18 +783,13 @@ export default function KeysPage() {
               <LoadingBlock />
             ) : visibleKeys.length === 0 ? (
               <EmptyState
-                message={
-                  isViewer
-                    ? "No personal keys yet. Generate one proxy key per provider to route LLM requests."
-                    : "No API keys yet. Create a proxy key to route provider requests through iw: keys."
-                }
                 action={
                   showBulkGenerate ? (
                     <button
-                      type="button"
                       className="btn btn-primary btn-lg min-h-16 w-full max-w-md px-8 text-lg"
                       disabled={bulkGenerateBusy}
                       onClick={onBulkGeneratePersonalKeys}
+                      type="button"
                     >
                       {bulkGenerateBusy ? (
                         <span className="loading loading-spinner loading-md" />
@@ -766,104 +798,113 @@ export default function KeysPage() {
                     </button>
                   ) : !isViewer && canCreateKey ? (
                     <button
-                      type="button"
                       className="btn btn-primary btn-sm"
                       onClick={openCreate}
+                      type="button"
                     >
                       Create your first key
                     </button>
                   ) : undefined
                 }
+                message={
+                  isViewer
+                    ? "No personal keys yet. Generate one proxy key per provider to route LLM requests."
+                    : "No API keys yet. Create a proxy key to route provider requests through iw: keys."
+                }
               />
             ) : (
               <KeysTable
-                keys={visibleKeys}
-                onShare={onShare}
-                onEdit={openEdit}
-                onDelete={setDeleteTarget}
                 canDelete={canDeleteKeys}
-                viewerMode={isViewer}
-                sharingKey={sharingKey}
-                maskKey={maskKey}
                 formatRateLimits={formatRateLimits}
+                keys={visibleKeys}
+                maskKey={maskKey}
+                onDelete={setDeleteTarget}
+                onEdit={openEdit}
+                onShare={onShare}
+                sharingKey={sharingKey}
+                viewerMode={isViewer}
               />
             )}
           </div>
 
           <ApiKeysModal
-            open={modalOpen}
+            anthropicTierOptions={anthropicTierOptions}
+            availableProviders={availableProviders}
+            canManagePolicy={canManagePolicy}
+            editingKey={editingKey}
+            editorMaxDollars={editorMaxDollars}
+            form={form}
+            isViewer={isViewer}
+            manualKeyEntry={manualKeyEntry}
             onClose={closeModal}
             onSubmit={onSubmit}
-            saving={saving}
-            editingKey={editingKey}
-            form={form}
-            setForm={setForm}
-            isViewer={isViewer}
-            canManagePolicy={canManagePolicy}
-            treatAsPersonal={treatAsPersonal}
-            personalMode={personalMode}
             onTogglePersonalMode={onTogglePersonalMode}
-            availableProviders={availableProviders}
-            provisionedKeysOnly={provisionedKeysOnly}
+            open={modalOpen}
+            personalMode={personalMode}
+            piiOffRequiresBedrock={piiOffRequiresBedrock}
             providerAutoProvision={providerAutoProvision}
-            useAutoProvision={useAutoProvision}
-            manualKeyEntry={manualKeyEntry}
+            provisionedKeysOnly={provisionedKeysOnly}
+            saving={saving}
+            setForm={setForm}
             setManualKeyEntry={setManualKeyEntry}
             showAnthropicTierSelect={showAnthropicTierSelect}
-            anthropicTierOptions={anthropicTierOptions}
-            piiOffRequiresBedrock={piiOffRequiresBedrock}
+            treatAsPersonal={treatAsPersonal}
+            useAutoProvision={useAutoProvision}
             viewerMonthlyLimitLabel={viewerMonthlyLimitLabel}
-            editorMaxDollars={editorMaxDollars}
           />
 
           {shareResult ? (
             <dialog className="modal modal-open" open>
               <div className="modal-box max-w-lg">
-                <h3 className="text-lg font-semibold">Shareable link created</h3>
-                <p className="py-3 text-sm text-base-content/70">
-                  Send this link to whoever needs the key. Anyone with the link can
-                  view it until it expires. The URL contains no key material.
+                <h3 className="font-semibold text-lg">
+                  Shareable link created
+                </h3>
+                <p className="py-3 text-base-content/70 text-sm">
+                  Send this link to whoever needs the key. Anyone with the link
+                  can view it until it expires. The URL contains no key
+                  material.
                 </p>
                 <div className="flex items-center gap-2">
                   <code className="flex-1 truncate rounded-lg bg-base-200/70 px-3 py-2 font-mono text-sm">
                     {shareResult.url}
                   </code>
-                  <CopyButton value={shareResult.url} label="Copy link" />
+                  <CopyButton label="Copy link" value={shareResult.url} />
                 </div>
                 {shareResult.expires_at ? (
                   <p
-                    className={`mt-3 text-sm ${formatShareExpiry(shareResult.expires_at).urgent
-                      ? "text-warning"
-                      : "text-base-content/60"
-                      }`}
+                    className={`mt-3 text-sm ${
+                      formatShareExpiry(shareResult.expires_at).urgent
+                        ? "text-warning"
+                        : "text-base-content/60"
+                    }`}
                   >
-                    {formatShareExpiry(shareResult.expires_at).message}. Re-sharing
-                    the same key within 24 hours reuses this URL.
+                    {formatShareExpiry(shareResult.expires_at).message}.
+                    Re-sharing the same key within 24 hours reuses this URL.
                   </p>
                 ) : null}
                 <div className="modal-action">
                   <a
-                    href={shareResult.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
                     className="btn btn-ghost"
+                    href={shareResult.url}
+                    rel="noopener noreferrer"
+                    target="_blank"
                   >
                     Open
                   </a>
                   <button
-                    type="button"
                     className="btn btn-primary"
                     onClick={() => setShareResult(null)}
+                    type="button"
                   >
                     Done
                   </button>
                 </div>
               </div>
-              <form method="dialog" className="modal-backdrop">
+              <form className="modal-backdrop" method="dialog">
                 <button
-                  type="button"
                   aria-label="Close"
                   onClick={() => setShareResult(null)}
+                  type="button"
                 />
               </form>
             </dialog>
@@ -872,8 +913,8 @@ export default function KeysPage() {
           {deleteTarget ? (
             <dialog className="modal modal-open" open>
               <div className="modal-box">
-                <h3 className="text-lg font-semibold">Delete API key?</h3>
-                <p className="py-4 text-sm text-base-content/70">
+                <h3 className="font-semibold text-lg">Delete API key?</h3>
+                <p className="py-4 text-base-content/70 text-sm">
                   This will permanently remove{" "}
                   <span className="code-chip font-mono">
                     {deleteTarget ? maskKey(deleteTarget.key) : ""}
@@ -882,27 +923,27 @@ export default function KeysPage() {
                 </p>
                 <div className="modal-action">
                   <button
-                    type="button"
                     className="btn btn-ghost"
                     onClick={() => setDeleteTarget(null)}
+                    type="button"
                   >
                     Cancel
                   </button>
                   <button
-                    type="button"
                     className="btn btn-error"
                     disabled={deleteKey.isPending}
                     onClick={onDelete}
+                    type="button"
                   >
                     Delete
                   </button>
                 </div>
               </div>
-              <form method="dialog" className="modal-backdrop">
+              <form className="modal-backdrop" method="dialog">
                 <button
-                  type="button"
                   aria-label="Close"
                   onClick={() => setDeleteTarget(null)}
+                  type="button"
                 />
               </form>
             </dialog>

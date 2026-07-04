@@ -1,23 +1,25 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import KeyLink from "../ui/key-link";
-import ByoBanButton from "../byo/ban-by-key-button";
-import DataTable from "../ui/data-table";
-import { ProviderBadge, StatusBadge } from "../ui/page-header";
+import { useMemo } from "react";
 import type { ByoBanActions } from "../../hooks/use-byo-ban-actions";
-import { nameCountDisplayRows, type NameCountDisplayRow } from "../../lib/group-rows";
+import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
+import { inferProviderFromMaskedId } from "../../lib/byo-ban";
+import type { NameCount } from "../../lib/daily-history";
+import {
+  type NameCountDisplayRow,
+  nameCountDisplayRows,
+} from "../../lib/group-rows";
 import {
   piiKeyPrimaryLabel,
   piiKeySecondaryLabel,
   piiKeyShowSecondary,
 } from "../../lib/pii-key-display";
-import { inferProviderFromMaskedId } from "../../lib/byo-ban";
+import type { APIKey, PIIRecentEvent } from "../../types";
+import ByoBanButton from "../byo/ban-by-key-button";
 import { PiiEntityBadges } from "../pii/pii-entity-badges";
 import { PiiRequestActionBadge } from "../pii/pii-request-action";
-import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
-import type { APIKey, PIIRecentEvent } from "../../types";
-import type { NameCount } from "../../lib/daily-history";
+import DataTable from "../ui/data-table";
+import KeyLink from "../ui/key-link";
+import { ProviderBadge, StatusBadge } from "../ui/page-header";
 
 export function TopKeysTable({
   rows,
@@ -31,7 +33,7 @@ export function TopKeysTable({
   const { displayData, onSearchActiveChange, footer } = useCollapsedRows(
     rows,
     nameCountDisplayRows,
-    "keys",
+    "keys"
   );
 
   const columns = useMemo<ColumnDef<NameCountDisplayRow, unknown>[]>(
@@ -43,7 +45,9 @@ export function TopKeysTable({
         cell: ({ row }) => {
           const data = row.original;
           if (data.isOthers) {
-            return <span className="italic text-base-content/60">{data.name}</span>;
+            return (
+              <span className="text-base-content/60 italic">{data.name}</span>
+            );
           }
           const showSecondary = piiKeyShowSecondary(data.name, keys);
           const inferredProvider = inferProviderFromMaskedId(data.name);
@@ -51,16 +55,20 @@ export function TopKeysTable({
             <div className="flex items-center gap-2">
               <KeyLink
                 keys={keys}
-                maskedId={data.name}
                 label={piiKeyPrimaryLabel(data.name, keys)}
-                secondaryLabel={showSecondary ? piiKeySecondaryLabel(data.name, keys) : undefined}
+                maskedId={data.name}
+                secondaryLabel={
+                  showSecondary
+                    ? piiKeySecondaryLabel(data.name, keys)
+                    : undefined
+                }
                 showMasked={showSecondary}
               />
               {inferredProvider ? (
                 <ByoBanButton
+                  actions={byoBanActions}
                   maskedId={data.name}
                   provider={inferredProvider}
-                  actions={byoBanActions}
                 />
               ) : null}
             </div>
@@ -75,18 +83,18 @@ export function TopKeysTable({
         cell: ({ getValue }) => getValue<number>().toLocaleString(),
       },
     ],
-    [keys, byoBanActions],
+    [keys, byoBanActions]
   );
 
   return (
     <DataTable
-      data={displayData}
       columns={columns}
-      searchPlaceholder="Filter keys…"
+      data={displayData}
       emptyMessage="No detections"
+      footer={footer}
       getRowId={(row) => (row.isOthers ? "__others__" : row.name)}
       onSearchActiveChange={onSearchActiveChange}
-      footer={footer}
+      searchPlaceholder="Filter keys…"
     />
   );
 }
@@ -108,7 +116,11 @@ export function RecentDetectionsTable({
         id: "time",
         accessorFn: (row) => new Date(row.time * 1000).toLocaleTimeString(),
         header: "Time",
-        cell: ({ getValue }) => <span className="whitespace-nowrap text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-base-content/70">
+            {getValue<string>()}
+          </span>
+        ),
       },
       {
         id: "provider",
@@ -122,22 +134,26 @@ export function RecentDetectionsTable({
         header: "Key",
         cell: ({ row }) => {
           const keyId = row.original.key_id;
-          if (!keyId) return "—";
+          if (!keyId) {
+            return "—";
+          }
           const showSecondary = piiKeyShowSecondary(keyId, keys);
           return (
             <div className="flex items-center gap-2">
               <KeyLink
-                keys={keys}
-                maskedId={keyId}
-                label={piiKeyPrimaryLabel(keyId, keys)}
-                secondaryLabel={showSecondary ? piiKeySecondaryLabel(keyId, keys) : undefined}
-                showMasked={showSecondary}
                 className="font-mono text-xs"
+                keys={keys}
+                label={piiKeyPrimaryLabel(keyId, keys)}
+                maskedId={keyId}
+                secondaryLabel={
+                  showSecondary ? piiKeySecondaryLabel(keyId, keys) : undefined
+                }
+                showMasked={showSecondary}
               />
               <ByoBanButton
+                actions={byoBanActions}
                 maskedId={keyId}
                 provider={row.original.provider}
-                actions={byoBanActions}
               />
             </div>
           );
@@ -149,7 +165,10 @@ export function RecentDetectionsTable({
         header: "Entities",
         enableSorting: false,
         cell: ({ row }) => (
-          <PiiEntityBadges entityCounts={row.original.entity_counts} outcome={row.original.outcome} />
+          <PiiEntityBadges
+            entityCounts={row.original.entity_counts}
+            outcome={row.original.outcome}
+          />
         ),
       },
       {
@@ -158,8 +177,8 @@ export function RecentDetectionsTable({
         header: "Request",
         cell: ({ row }) => (
           <PiiRequestActionBadge
-            outcome={row.original.outcome}
             entityTotal={row.original.entity_total}
+            outcome={row.original.outcome}
             wirePlaceholders={wirePlaceholders}
           />
         ),
@@ -168,28 +187,32 @@ export function RecentDetectionsTable({
         id: "latency",
         accessorKey: "duration_ms",
         header: "Latency",
-        cell: ({ getValue }) => <span className="text-base-content/70">{getValue<number>().toFixed(1)} ms</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/70">
+            {getValue<number>().toFixed(1)} ms
+          </span>
+        ),
       },
     ],
-    [keys, byoBanActions, wirePlaceholders],
+    [keys, byoBanActions, wirePlaceholders]
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter detections…"
+      data={rows}
       emptyMessage="No detections recorded yet"
       getRowId={(row, index) => `${row.time}-${index}`}
+      searchPlaceholder="Filter detections…"
     />
   );
 }
 
-export type BlockedByKeyRow = {
-  label: string;
+export interface BlockedByKeyRow {
   count: number;
   currentlyOpen: boolean;
-};
+  label: string;
+}
 
 export function BlockedByKeyTable({ rows }: { rows: BlockedByKeyRow[] }) {
   const columns = useMemo<ColumnDef<BlockedByKeyRow, unknown>[]>(
@@ -227,22 +250,24 @@ export function BlockedByKeyTable({ rows }: { rows: BlockedByKeyRow[] }) {
         header: "Blocked today",
         meta: { alignRight: true },
         cell: ({ row, getValue }) => (
-          <span className={row.original.currentlyOpen ? "" : "text-base-content/45"}>
+          <span
+            className={row.original.currentlyOpen ? "" : "text-base-content/45"}
+          >
             {getValue<number>().toLocaleString()}
           </span>
         ),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter breaker keys…"
+      data={rows}
       emptyMessage="No blocked requests in this window"
       getRowId={(row) => row.label}
+      searchPlaceholder="Filter breaker keys…"
       tableClassName="table table-zebra table-sm"
     />
   );
@@ -256,7 +281,15 @@ export function CircuitProvidersTable({
   providerFailurePeaks,
 }: {
   names: string[];
-  providers: Record<string, { state?: string; error?: string; failures?: number; rollup?: { open?: boolean; enabled?: boolean; threshold?: number } }>;
+  providers: Record<
+    string,
+    {
+      state?: string;
+      error?: string;
+      failures?: number;
+      rollup?: { open?: boolean; enabled?: boolean; threshold?: number };
+    }
+  >;
   range: string;
   hasFailureRedis: boolean;
   providerFailurePeaks: Map<string, number>;
@@ -267,7 +300,9 @@ export function CircuitProvidersTable({
         const p = providers[name];
         const state = p.state ?? p.error ?? "unknown";
         const failures =
-          range === "today" || !hasFailureRedis ? (p.failures ?? "—") : (providerFailurePeaks.get(name) ?? 0);
+          range === "today" || !hasFailureRedis
+            ? (p.failures ?? "—")
+            : (providerFailurePeaks.get(name) ?? 0);
         return {
           name,
           state,
@@ -276,7 +311,7 @@ export function CircuitProvidersTable({
           threshold: p.rollup?.threshold ?? "—",
         };
       }),
-    [names, providers, range, hasFailureRedis, providerFailurePeaks],
+    [names, providers, range, hasFailureRedis, providerFailurePeaks]
   );
 
   const columns = useMemo<ColumnDef<(typeof rows)[number], unknown>[]>(
@@ -293,7 +328,13 @@ export function CircuitProvidersTable({
         header: "State",
         cell: ({ getValue }) => {
           const state = getValue<string>();
-          return <StatusBadge active={state === "closed"} activeLabel="closed" inactiveLabel={state} />;
+          return (
+            <StatusBadge
+              active={state === "closed"}
+              activeLabel="closed"
+              inactiveLabel={state}
+            />
+          );
         },
       },
       {
@@ -312,16 +353,16 @@ export function CircuitProvidersTable({
         header: "Threshold",
       },
     ],
-    [range],
+    [range]
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter providers…"
+      data={rows}
       emptyMessage="No provider data"
       getRowId={(row) => row.name}
+      searchPlaceholder="Filter providers…"
     />
   );
 }
@@ -335,16 +376,23 @@ export function CircuitActivityTable({
   events: import("../../types").CircuitActivityEvent[];
   formatEventTime: (unix: number) => string;
   eventLabel: (kind: string) => string;
-  parseBreakerKey: (key: string | undefined, fallback: string) => { model?: string | null; scope: string };
+  parseBreakerKey: (
+    key: string | undefined,
+    fallback: string
+  ) => { model?: string | null; scope: string };
 }) {
-  const columns = useMemo<ColumnDef<import("../../types").CircuitActivityEvent, unknown>[]>(
+  const columns = useMemo<
+    ColumnDef<import("../../types").CircuitActivityEvent, unknown>[]
+  >(
     () => [
       {
         id: "time",
         accessorKey: "time",
         header: "Time",
         cell: ({ getValue }) => (
-          <span className="whitespace-nowrap text-xs">{formatEventTime(getValue<number>())}</span>
+          <span className="whitespace-nowrap text-xs">
+            {formatEventTime(getValue<number>())}
+          </span>
         ),
       },
       {
@@ -363,16 +411,23 @@ export function CircuitActivityTable({
         id: "model",
         accessorFn: (row) => parseBreakerKey(row.key, row.provider).model,
         header: "Model",
-        cell: ({ getValue }) => <span className="font-mono text-xs">{getValue<string>() ?? "—"}</span>,
+        cell: ({ getValue }) => (
+          <span className="font-mono text-xs">{getValue<string>() ?? "—"}</span>
+        ),
       },
       {
         id: "scope",
         accessorFn: (row) => parseBreakerKey(row.key, row.provider).scope,
         header: "Scope",
         cell: ({ row }) => {
-          const scope = parseBreakerKey(row.original.key, row.original.provider).scope;
+          const scope = parseBreakerKey(
+            row.original.key,
+            row.original.provider
+          ).scope;
           return (
-            <span className={`badge badge-sm ${scope === "model" ? "badge-ghost" : "badge-warning"}`}>
+            <span
+              className={`badge badge-sm ${scope === "model" ? "badge-ghost" : "badge-warning"}`}
+            >
               {scope === "model" ? "per-model" : "provider-wide"}
             </span>
           );
@@ -385,7 +440,11 @@ export function CircuitActivityTable({
         cell: ({ getValue }) => {
           const state = getValue<string | undefined>();
           return state ? (
-            <StatusBadge active={state === "closed"} activeLabel="closed" inactiveLabel={state} />
+            <StatusBadge
+              active={state === "closed"}
+              activeLabel="closed"
+              inactiveLabel={state}
+            />
           ) : (
             "—"
           );
@@ -400,32 +459,36 @@ export function CircuitActivityTable({
           const e = row.original;
           const { scope } = parseBreakerKey(e.key, e.provider);
           return (
-            <span className="text-xs text-base-content/70">
+            <span className="text-base-content/70 text-xs">
               {e.status_code ? `HTTP ${e.status_code}` : null}
               {e.failure_kind ? ` ${e.failure_kind}` : null}
               {e.upstream_error ? (
-                <span className="block text-base-content/60">{e.upstream_error}</span>
+                <span className="block text-base-content/60">
+                  {e.upstream_error}
+                </span>
               ) : null}
               {e.reason ? e.reason : null}
               {scope === "model" && e.key ? (
-                <span className="block font-mono text-base-content/50">{e.key}</span>
+                <span className="block font-mono text-base-content/50">
+                  {e.key}
+                </span>
               ) : null}
             </span>
           );
         },
       },
     ],
-    [formatEventTime, eventLabel, parseBreakerKey],
+    [formatEventTime, eventLabel, parseBreakerKey]
   );
 
   return (
     <DataTable
-      data={events}
       columns={columns}
-      searchPlaceholder="Filter events…"
+      data={events}
       emptyMessage="No recovery probes in this window"
-      tableClassName="table table-zebra table-sm"
       getRowId={(row, index) => `${row.time}-${row.kind}-${index}`}
+      searchPlaceholder="Filter events…"
+      tableClassName="table table-zebra table-sm"
     />
   );
 }

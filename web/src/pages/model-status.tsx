@@ -1,9 +1,8 @@
-import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo, useState } from "react";
 
 import { BarChart, ChartCard, TrendChart } from "../components/charts";
 import { chartPalette } from "../components/charts/chart-setup";
-import DataTable from "../components/ui/data-table";
 import {
   type DataSource,
   LiveStat,
@@ -11,31 +10,40 @@ import {
   SectionPanel,
   trendChartSource,
 } from "../components/ui/data-source";
-import PageHeader, { ErrorAlert, LiveIndicator, LoadingBlock } from "../components/ui/page-header";
+import DataTable from "../components/ui/data-table";
+import PageHeader, {
+  ErrorAlert,
+  LiveIndicator,
+  LoadingBlock,
+} from "../components/ui/page-header";
 import { useModelStatus } from "../hooks/queries";
 import { LIVE_TREND_CHART_SUBTITLE, useHistory } from "../hooks/use-history";
 import {
+  aggNameCount,
   DAILY_HISTORY_SUBTITLE,
   HOURLY_HISTORY_FALLBACK_SUBTITLE,
   HOURLY_HISTORY_SUBTITLE,
-  type NameCount,
-  type RangeKey,
-  RANGE_OPTIONS,
-  aggNameCount,
   hourlySeries,
+  type NameCount,
   pickToday,
+  RANGE_OPTIONS,
+  type RangeKey,
   scalarSeries,
   sumScalarField,
 } from "../lib/daily-history";
 import type { ModelStatusNameCount, ModelStatusRegistryEntry } from "../types";
 
 function rangeLabel(range: RangeKey): string {
-  return range === "today" ? "today" : `last ${range === "7d" ? "7" : "30"} days`;
+  return range === "today"
+    ? "today"
+    : `last ${range === "7d" ? "7" : "30"} days`;
 }
 
 function splitScope(scope: string): { provider: string; model: string } {
   const idx = scope.indexOf(":");
-  if (idx === -1) return { provider: "", model: scope };
+  if (idx === -1) {
+    return { provider: "", model: scope };
+  }
   return { provider: scope.slice(0, idx), model: scope.slice(idx + 1) };
 }
 
@@ -45,35 +53,47 @@ function toNameCount(rows: ModelStatusNameCount[] | undefined): NameCount[] {
 
 function lookupRetired(
   registry: ModelStatusRegistryEntry[] | undefined,
-  scope: string,
+  scope: string
 ): ModelStatusRegistryEntry | undefined {
   const { provider, model } = splitScope(scope);
   for (const row of registry ?? []) {
-    if (row.provider !== provider) continue;
-    if (row.model === model) return row;
-    if (row.aliases?.includes(model)) return row;
+    if (row.provider !== provider) {
+      continue;
+    }
+    if (row.model === model) {
+      return row;
+    }
+    if (row.aliases?.includes(model)) {
+      return row;
+    }
   }
-  return undefined;
+  return;
 }
 
 function lookupDeprecated(
   registry: ModelStatusRegistryEntry[] | undefined,
-  scope: string,
+  scope: string
 ): ModelStatusRegistryEntry | undefined {
   const { provider, model } = splitScope(scope);
   for (const row of registry ?? []) {
-    if (row.provider !== provider) continue;
-    if (row.model === model) return row;
-    if (row.aliases?.includes(model)) return row;
+    if (row.provider !== provider) {
+      continue;
+    }
+    if (row.model === model) {
+      return row;
+    }
+    if (row.aliases?.includes(model)) {
+      return row;
+    }
   }
-  return undefined;
+  return;
 }
 
 interface TrafficRow {
-  id: string;
-  provider: string;
-  model: string;
   calls: number;
+  id: string;
+  model: string;
+  provider: string;
   replacement?: string;
   retiredDate?: string;
 }
@@ -81,7 +101,7 @@ interface TrafficRow {
 function trafficRows(
   counts: NameCount[],
   kind: "retired" | "deprecated" | "unknown",
-  registry: ModelStatusRegistryEntry[] | undefined,
+  registry: ModelStatusRegistryEntry[] | undefined
 ): TrafficRow[] {
   return counts.map((row) => {
     const { provider, model } = splitScope(row.name);
@@ -102,19 +122,26 @@ function trafficRows(
   });
 }
 
-function trafficColumns(showReplacement: boolean, showRetiredDate: boolean): ColumnDef<TrafficRow, unknown>[] {
+function trafficColumns(
+  showReplacement: boolean,
+  showRetiredDate: boolean
+): ColumnDef<TrafficRow, unknown>[] {
   const cols: ColumnDef<TrafficRow, unknown>[] = [
     {
       id: "provider",
       accessorKey: "provider",
       header: "Provider",
-      cell: ({ getValue }) => <span className="font-medium capitalize">{getValue<string>()}</span>,
+      cell: ({ getValue }) => (
+        <span className="font-medium capitalize">{getValue<string>()}</span>
+      ),
     },
     {
       id: "model",
       accessorKey: "model",
       header: "Model",
-      cell: ({ getValue }) => <code className="text-sm">{getValue<string>()}</code>,
+      cell: ({ getValue }) => (
+        <code className="text-sm">{getValue<string>()}</code>
+      ),
     },
     {
       id: "calls",
@@ -146,7 +173,8 @@ function trafficColumns(showReplacement: boolean, showRetiredDate: boolean): Col
 }
 
 export default function ModelStatusPage() {
-  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } = useModelStatus();
+  const { data, isLoading, error, dataUpdatedAt, isFetching, refetch } =
+    useModelStatus();
   const [range, setRange] = useState<RangeKey>("today");
 
   const stats = data?.stats;
@@ -158,122 +186,156 @@ export default function ModelStatusPage() {
     stats?.available ? stats?.retired_total : undefined,
     history,
     "retired_total",
-    hasRedis,
+    hasRedis
   );
   const deprecatedPick = pickToday(
     stats?.available ? stats?.deprecated_total : undefined,
     history,
     "deprecated_total",
-    hasRedis,
+    hasRedis
   );
   const unknownPick = pickToday(
     stats?.available ? stats?.unknown_total : undefined,
     history,
     "unknown_total",
-    hasRedis,
+    hasRedis
   );
 
   const retiredValue =
-    range === "today" ? retiredPick.value : sumScalarField(history, range, "retired_total");
+    range === "today"
+      ? retiredPick.value
+      : sumScalarField(history, range, "retired_total");
   const deprecatedValue =
-    range === "today" ? deprecatedPick.value : sumScalarField(history, range, "deprecated_total");
+    range === "today"
+      ? deprecatedPick.value
+      : sumScalarField(history, range, "deprecated_total");
   const unknownValue =
-    range === "today" ? unknownPick.value : sumScalarField(history, range, "unknown_total");
+    range === "today"
+      ? unknownPick.value
+      : sumScalarField(history, range, "unknown_total");
   const summarySource: DataSource =
     range === "today" ? retiredPick.source : hasRedis ? "redis" : "memory";
 
-  const retiredHistory = useHistory(stats?.available ? retiredPick.value : undefined);
+  const retiredHistory = useHistory(
+    stats?.available ? retiredPick.value : undefined
+  );
   const dailyRetired = useMemo(
     () => scalarSeries(history, "retired_total", range),
-    [history, range],
+    [history, range]
   );
-  const useDailyChart = Boolean(hasRedis && range !== "today" && dailyRetired.available);
+  const useDailyChart = Boolean(
+    hasRedis && range !== "today" && dailyRetired.available
+  );
   const hourlyRetired = useMemo(
     () => hourlySeries(stats?.hourly_history, "retired_total"),
-    [stats?.hourly_history],
+    [stats?.hourly_history]
   );
-  const useHourlyChart = Boolean(stats?.hourly_history_available && range === "today" && hourlyRetired.available);
+  const useHourlyChart = Boolean(
+    stats?.hourly_history_available &&
+      range === "today" &&
+      hourlyRetired.available
+  );
 
-  const breakdownSource: DataSource = hasRedis || range !== "today" ? "redis" : "memory";
-  const byRetired = hasRedis || range !== "today"
-    ? aggNameCount(history, range, "by_retired")
-    : toNameCount(stats?.by_retired);
-  const byDeprecated = hasRedis || range !== "today"
-    ? aggNameCount(history, range, "by_deprecated")
-    : toNameCount(stats?.by_deprecated);
-  const byUnknown = hasRedis || range !== "today"
-    ? aggNameCount(history, range, "by_unknown")
-    : toNameCount(stats?.by_unknown);
+  const breakdownSource: DataSource =
+    hasRedis || range !== "today" ? "redis" : "memory";
+  const byRetired =
+    hasRedis || range !== "today"
+      ? aggNameCount(history, range, "by_retired")
+      : toNameCount(stats?.by_retired);
+  const byDeprecated =
+    hasRedis || range !== "today"
+      ? aggNameCount(history, range, "by_deprecated")
+      : toNameCount(stats?.by_deprecated);
+  const byUnknown =
+    hasRedis || range !== "today"
+      ? aggNameCount(history, range, "by_unknown")
+      : toNameCount(stats?.by_unknown);
 
   const retiredRows = useMemo(
     () => trafficRows(byRetired, "retired", registry?.retired),
-    [byRetired, registry?.retired],
+    [byRetired, registry?.retired]
   );
   const deprecatedRows = useMemo(
     () => trafficRows(byDeprecated, "deprecated", registry?.deprecated),
-    [byDeprecated, registry?.deprecated],
+    [byDeprecated, registry?.deprecated]
   );
   const unknownRows = useMemo(
     () => trafficRows(byUnknown, "unknown", undefined),
-    [byUnknown],
+    [byUnknown]
   );
 
   const retiredColumns = useMemo(() => trafficColumns(true, true), []);
   const deprecatedColumns = useMemo(() => trafficColumns(true, false), []);
   const unknownColumns = useMemo(() => trafficColumns(false, false), []);
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading) {
+    return <LoadingBlock />;
+  }
   if (error) {
     return (
-      <ErrorAlert message={error instanceof Error ? error.message : "Failed to load model status"} />
+      <ErrorAlert
+        message={
+          error instanceof Error ? error.message : "Failed to load model status"
+        }
+      />
     );
   }
-  if (!data) return null;
+  if (!data) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Model Status"
-        description="Retired, deprecated, and unrecognized model traffic."
         actions={
           <div className="flex items-center gap-3">
-            <RangeToggle value={range} options={RANGE_OPTIONS} onChange={setRange} />
-            <LiveIndicator updatedAt={dataUpdatedAt} fetching={isFetching} onRefresh={() => refetch()} />
+            <RangeToggle
+              onChange={setRange}
+              options={RANGE_OPTIONS}
+              value={range}
+            />
+            <LiveIndicator
+              fetching={isFetching}
+              onRefresh={() => refetch()}
+              updatedAt={dataUpdatedAt}
+            />
           </div>
         }
+        description="Retired, deprecated, and unrecognized model traffic."
+        title="Model Status"
       />
 
-      {!stats?.available ? (
+      {stats?.available ? null : (
         <div className="alert alert-info">
           <span>Model status stats are unavailable on this instance.</span>
         </div>
-      ) : null}
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         <LiveStat
-          title="Retired calls"
-          value={retiredValue.toLocaleString()}
           hint={`blocked requests · ${rangeLabel(range)}`}
           source={summarySource}
+          title="Retired calls"
+          value={retiredValue.toLocaleString()}
         />
         <LiveStat
-          title="Deprecated calls"
-          value={deprecatedValue.toLocaleString()}
           hint={`still forwarded · ${rangeLabel(range)}`}
           source={summarySource}
+          title="Deprecated calls"
+          value={deprecatedValue.toLocaleString()}
         />
         <LiveStat
-          title="Unknown models"
-          value={unknownValue.toLocaleString()}
           hint={`unregistered slugs · ${rangeLabel(range)}`}
           source={summarySource}
+          title="Unknown models"
+          value={unknownValue.toLocaleString()}
         />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <ChartCard
-            title="Retired calls over time"
+            source={trendChartSource(useDailyChart || useHourlyChart)}
             subtitle={
               useDailyChart
                 ? DAILY_HISTORY_SUBTITLE
@@ -283,80 +345,88 @@ export default function ModelStatusPage() {
                     ? HOURLY_HISTORY_FALLBACK_SUBTITLE
                     : LIVE_TREND_CHART_SUBTITLE
             }
-            source={trendChartSource(useDailyChart || useHourlyChart)}
+            title="Retired calls over time"
           >
             {useDailyChart ? (
               <BarChart
+                colors={dailyRetired.labels.map(() => chartPalette.error())}
+                label="Retired calls"
                 labels={dailyRetired.labels}
                 values={dailyRetired.values}
-                label="Retired calls"
-                colors={dailyRetired.labels.map(() => chartPalette.error())}
               />
             ) : useHourlyChart ? (
               <BarChart
+                colors={hourlyRetired.labels.map(() => chartPalette.error())}
+                label="Hourly retired calls"
                 labels={hourlyRetired.labels}
                 values={hourlyRetired.values}
-                label="Hourly retired calls"
-                colors={hourlyRetired.labels.map(() => chartPalette.error())}
               />
             ) : (
-              <TrendChart points={retiredHistory} label="Retired calls" color={chartPalette.error()} />
+              <TrendChart
+                color={chartPalette.error()}
+                label="Retired calls"
+                points={retiredHistory}
+              />
             )}
           </ChartCard>
         </div>
         <ChartCard
-          title="Issue mix"
-          subtitle={`Retired vs deprecated vs unknown · ${rangeLabel(range)}`}
           source={breakdownSource}
+          subtitle={`Retired vs deprecated vs unknown · ${rangeLabel(range)}`}
+          title="Issue mix"
         >
           <BarChart
+            colors={[
+              chartPalette.error(),
+              chartPalette.warning(),
+              chartPalette.info(),
+            ]}
+            label="Calls"
             labels={["Retired", "Deprecated", "Unknown"]}
             values={[retiredValue, deprecatedValue, unknownValue]}
-            label="Calls"
-            colors={[chartPalette.error(), chartPalette.warning(), chartPalette.info()]}
           />
         </ChartCard>
       </div>
 
       <SectionPanel
-        title="Retired model calls"
-        subtitle={`Blocked at the proxy · ${rangeLabel(range)}`}
         source={breakdownSource}
+        subtitle={`Blocked at the proxy · ${rangeLabel(range)}`}
+        title="Retired model calls"
       >
         <DataTable
-          data={retiredRows}
           columns={retiredColumns}
-          searchPlaceholder="Filter models…"
+          data={retiredRows}
           emptyMessage="No retired model calls in this window"
           getRowId={(row) => row.id}
+          searchPlaceholder="Filter models…"
         />
       </SectionPanel>
 
       <SectionPanel
-        title="Deprecated model calls"
-        subtitle={`Still forwarded upstream · ${rangeLabel(range)}`}
         source={breakdownSource}
+        subtitle={`Still forwarded upstream · ${rangeLabel(range)}`}
+        title="Deprecated model calls"
       >
         <DataTable
-          data={deprecatedRows}
           columns={deprecatedColumns}
-          searchPlaceholder="Filter models…"
+          data={deprecatedRows}
           emptyMessage="No deprecated model calls in this window"
           getRowId={(row) => row.id}
+          searchPlaceholder="Filter models…"
         />
       </SectionPanel>
 
       <SectionPanel
-        title="Unknown model calls"
-        subtitle={`Slugs not in proxy config · ${rangeLabel(range)}`}
         source={breakdownSource}
+        subtitle={`Slugs not in proxy config · ${rangeLabel(range)}`}
+        title="Unknown model calls"
       >
         <DataTable
-          data={unknownRows}
           columns={unknownColumns}
-          searchPlaceholder="Filter models…"
+          data={unknownRows}
           emptyMessage="No unknown model calls in this window"
           getRowId={(row) => row.id}
+          searchPlaceholder="Filter models…"
         />
       </SectionPanel>
     </div>

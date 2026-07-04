@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 
 import { useMe } from "../hooks/queries";
@@ -17,9 +17,11 @@ export default function RequireRole({
   const { data: me, isLoading } = useMe();
   const role = me?.role ?? "viewer";
 
-  if (isLoading) return <LoadingBlock />;
+  if (isLoading) {
+    return <LoadingBlock />;
+  }
   if (!roleAtLeast(role, minRole)) {
-    return <Navigate to={defaultPathForRole(role)} replace />;
+    return <Navigate replace to={defaultPathForRole(role)} />;
   }
   return children;
 }

@@ -44,14 +44,27 @@ export function CopyButton({
   };
 
   return (
-    <button type="button" className={className} onClick={onCopy} aria-label={label}>
+    <button
+      aria-label={label}
+      className={className}
+      onClick={onCopy}
+      type="button"
+    >
       {copied ? (
-        <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.2">
+        <svg
+          className="h-4 w-4 fill-none stroke-current"
+          strokeWidth="2.2"
+          viewBox="0 0 24 24"
+        >
           <path d="m20 6-11 11-5-5" />
         </svg>
       ) : (
-        <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
-          <rect x="9" y="9" width="11" height="11" rx="2" />
+        <svg
+          className="h-4 w-4 fill-none stroke-current"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
+          <rect height="11" rx="2" width="11" x="9" y="9" />
           <path d="M5 15V5a2 2 0 0 1 2-2h10" />
         </svg>
       )}

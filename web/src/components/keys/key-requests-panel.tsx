@@ -1,29 +1,34 @@
 import { useMemo, useState } from "react";
-
-import KeyRequestsTable from "../key-requests/key-requests-table";
-import { ErrorAlert, LoadingBlock } from "../ui/page-header";
-import { useToast } from "../ui/toast";
 import { APIClientError } from "../../client";
 import { useKeyRequests, useReviewKeyRequest } from "../../hooks/queries";
 import type { KeyRequestRecord } from "../../types";
+import KeyRequestsTable from "../key-requests/key-requests-table";
+import { ErrorAlert, LoadingBlock } from "../ui/page-header";
+import { useToast } from "../ui/toast";
 
 type StatusFilter = "pending" | "all";
 
 export default function KeyRequestsPanel() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
-  const requestsQuery = useKeyRequests(statusFilter === "pending" ? "pending" : undefined);
+  const requestsQuery = useKeyRequests(
+    statusFilter === "pending" ? "pending" : undefined
+  );
   const reviewRequest = useReviewKeyRequest();
   const toast = useToast();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [rejectTarget, setRejectTarget] = useState<KeyRequestRecord | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<KeyRequestRecord | null>(
+    null
+  );
   const [rejectReason, setRejectReason] = useState("");
 
   const forbidden =
-    requestsQuery.error instanceof APIClientError && requestsQuery.error.status === 403;
+    requestsQuery.error instanceof APIClientError &&
+    requestsQuery.error.status === 403;
 
   const pendingCount = useMemo(
-    () => (requestsQuery.data ?? []).filter((r) => r.status === "pending").length,
-    [requestsQuery.data],
+    () =>
+      (requestsQuery.data ?? []).filter((r) => r.status === "pending").length,
+    [requestsQuery.data]
   );
 
   const onApprove = async (request: KeyRequestRecord) => {
@@ -32,14 +37,19 @@ export default function KeyRequestsPanel() {
       await reviewRequest.mutateAsync({ id: request.id, action: "approve" });
       toast.push("Key request approved and key created", "success");
     } catch (err) {
-      toast.push(err instanceof Error ? err.message : "Failed to approve request", "error");
+      toast.push(
+        err instanceof Error ? err.message : "Failed to approve request",
+        "error"
+      );
     } finally {
       setBusyId(null);
     }
   };
 
   const onConfirmReject = async () => {
-    if (!rejectTarget) return;
+    if (!rejectTarget) {
+      return;
+    }
     setBusyId(rejectTarget.id);
     try {
       await reviewRequest.mutateAsync({
@@ -51,7 +61,10 @@ export default function KeyRequestsPanel() {
       setRejectTarget(null);
       setRejectReason("");
     } catch (err) {
-      toast.push(err instanceof Error ? err.message : "Failed to reject request", "error");
+      toast.push(
+        err instanceof Error ? err.message : "Failed to reject request",
+        "error"
+      );
     } finally {
       setBusyId(null);
     }
@@ -60,14 +73,14 @@ export default function KeyRequestsPanel() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-base-content/70">
-          Review pending requests for org-wide service keys. Check that the use case is specific
-          enough before you approve and provision the key.
+        <p className="text-base-content/70 text-sm">
+          Review pending requests for org-wide service keys. Check that the use
+          case is specific enough before you approve and provision the key.
         </p>
         <select
           className="select select-bordered select-sm"
-          value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          value={statusFilter}
         >
           <option value="pending">Pending only</option>
           <option value="all">All requests</option>
@@ -94,46 +107,50 @@ export default function KeyRequestsPanel() {
         />
       ) : (
         <KeyRequestsTable
-          requests={requestsQuery.data ?? []}
           busyId={busyId}
           onApprove={onApprove}
           onReject={setRejectTarget}
+          requests={requestsQuery.data ?? []}
         />
       )}
 
       {rejectTarget ? (
         <dialog className="modal modal-open">
           <div className="modal-box">
-            <h3 className="text-lg font-semibold">Reject key request</h3>
-            <p className="mt-2 text-sm text-base-content/70">
+            <h3 className="font-semibold text-lg">Reject key request</h3>
+            <p className="mt-2 text-base-content/70 text-sm">
               {rejectTarget.requester_email} — {rejectTarget.provider}
             </p>
             <label className="form-control mt-4 w-full">
               <span className="label-text">Reason (optional)</span>
               <textarea
                 className="textarea textarea-bordered w-full"
-                rows={3}
-                value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 placeholder="e.g. Please use an existing shared key for this service"
+                rows={3}
+                value={rejectReason}
               />
             </label>
             <div className="modal-action">
-              <button type="button" className="btn btn-ghost" onClick={() => setRejectTarget(null)}>
+              <button
+                className="btn btn-ghost"
+                onClick={() => setRejectTarget(null)}
+                type="button"
+              >
                 Cancel
               </button>
               <button
-                type="button"
                 className="btn btn-error"
                 disabled={reviewRequest.isPending}
                 onClick={onConfirmReject}
+                type="button"
               >
                 Reject
               </button>
             </div>
           </div>
-          <form method="dialog" className="modal-backdrop">
-            <button type="button" onClick={() => setRejectTarget(null)}>
+          <form className="modal-backdrop" method="dialog">
+            <button onClick={() => setRejectTarget(null)} type="button">
               close
             </button>
           </form>

@@ -1,7 +1,7 @@
 process.env.ANTHROPIC_BASE_URL = process.env.PROXY_BASE_URL;
 process.env.ANTHROPIC_API_KEY = process.env.PROXY_API_KEY;
 
-if (!process.env.ANTHROPIC_BASE_URL || !process.env.ANTHROPIC_API_KEY) {
+if (!(process.env.ANTHROPIC_BASE_URL && process.env.ANTHROPIC_API_KEY)) {
   console.error("PROXY_BASE_URL and PROXY_API_KEY required");
   process.exit(1);
 }

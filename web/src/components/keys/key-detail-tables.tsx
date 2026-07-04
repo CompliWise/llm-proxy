@@ -1,10 +1,9 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import DataTable from "../ui/data-table";
-import { ProviderBadge } from "../ui/page-header";
+import { useMemo } from "react";
 import { formatCount, formatUsd } from "../../lib/format";
 import type { KeyCostRecentEvent, KeyPIIRecentEvent } from "../../types";
+import DataTable from "../ui/data-table";
+import { ProviderBadge } from "../ui/page-header";
 
 function piiOutcomeBadge(outcome: KeyPIIRecentEvent["outcome"]) {
   const map: Record<KeyPIIRecentEvent["outcome"], string> = {
@@ -23,7 +22,11 @@ export function KeyCostEventsTable({ rows }: { rows: KeyCostRecentEvent[] }) {
         id: "time",
         accessorFn: (row) => new Date(row.time * 1000).toLocaleTimeString(),
         header: "Time",
-        cell: ({ getValue }) => <span className="whitespace-nowrap text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-base-content/70">
+            {getValue<string>()}
+          </span>
+        ),
       },
       {
         id: "provider",
@@ -35,7 +38,11 @@ export function KeyCostEventsTable({ rows }: { rows: KeyCostRecentEvent[] }) {
         id: "model",
         accessorKey: "model",
         header: "Model",
-        cell: ({ getValue }) => <span className="text-xs text-base-content/60">{getValue<string>() ?? "—"}</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/60 text-xs">
+            {getValue<string>() ?? "—"}
+          </span>
+        ),
       },
       {
         id: "total",
@@ -66,16 +73,16 @@ export function KeyCostEventsTable({ rows }: { rows: KeyCostRecentEvent[] }) {
         ),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter events…"
+      data={rows}
       emptyMessage="No cost events for this key yet"
       getRowId={(row, index) => `${row.time}-${row.model}-${index}`}
+      searchPlaceholder="Filter events…"
       tableClassName="table table-zebra border-t border-base-300/70"
     />
   );
@@ -88,7 +95,11 @@ export function KeyPiiEventsTable({ rows }: { rows: KeyPIIRecentEvent[] }) {
         id: "time",
         accessorFn: (row) => new Date(row.time * 1000).toLocaleTimeString(),
         header: "Time",
-        cell: ({ getValue }) => <span className="whitespace-nowrap text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-base-content/70">
+            {getValue<string>()}
+          </span>
+        ),
       },
       {
         id: "provider",
@@ -105,7 +116,7 @@ export function KeyPiiEventsTable({ rows }: { rows: KeyPIIRecentEvent[] }) {
           row.original.entity_total > 0 ? (
             <div className="flex flex-wrap gap-1">
               {Object.entries(row.original.entity_counts).map(([name, n]) => (
-                <span key={name} className="badge badge-sm badge-outline">
+                <span className="badge badge-sm badge-outline" key={name}>
                   {name.replaceAll("_", " ")} ×{n}
                 </span>
               ))}
@@ -118,25 +129,30 @@ export function KeyPiiEventsTable({ rows }: { rows: KeyPIIRecentEvent[] }) {
         id: "outcome",
         accessorKey: "outcome",
         header: "Outcome",
-        cell: ({ getValue }) => piiOutcomeBadge(getValue<KeyPIIRecentEvent["outcome"]>()),
+        cell: ({ getValue }) =>
+          piiOutcomeBadge(getValue<KeyPIIRecentEvent["outcome"]>()),
       },
       {
         id: "latency",
         accessorKey: "duration_ms",
         header: "Latency",
-        cell: ({ getValue }) => <span className="text-base-content/70">{getValue<number>().toFixed(1)} ms</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/70">
+            {getValue<number>().toFixed(1)} ms
+          </span>
+        ),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter events…"
+      data={rows}
       emptyMessage="No PII events for this key yet"
       getRowId={(row, index) => `${row.time}-${index}`}
+      searchPlaceholder="Filter events…"
       tableClassName="table table-zebra border-t border-base-300/70"
     />
   );
@@ -153,7 +169,11 @@ export function KeyRateUsageTable({
         id: "window",
         accessorKey: "window",
         header: "Window",
-        cell: ({ getValue }) => <span className="capitalize">{getValue<string>() === "day" ? "Today" : "Last minute"}</span>,
+        cell: ({ getValue }) => (
+          <span className="capitalize">
+            {getValue<string>() === "day" ? "Today" : "Last minute"}
+          </span>
+        ),
       },
       {
         id: "requests",
@@ -168,16 +188,16 @@ export function KeyRateUsageTable({
         cell: ({ getValue }) => formatCount(getValue<number>()),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchable={false}
+      data={rows}
       emptyMessage="No rate-limit usage recorded for this key"
       getRowId={(row) => row.window}
+      searchable={false}
       tableClassName="table table-zebra border-t border-base-300/70"
     />
   );

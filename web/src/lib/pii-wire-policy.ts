@@ -29,16 +29,16 @@ export function piiEntityPolicy(entityType: string): PiiEntityPolicy {
   return ENTITY_POLICY[entityType] ?? "redact";
 }
 
-export type PiiRequestAction = {
-  label: string;
+export interface PiiRequestAction {
   detail: string;
+  label: string;
   tone: "success" | "warning" | "error" | "neutral";
-};
+}
 
 export function piiRequestAction(
   outcome: PIIRecentEvent["outcome"],
   entityTotal: number,
-  opts: { wirePlaceholders: boolean },
+  opts: { wirePlaceholders: boolean }
 ): PiiRequestAction {
   switch (outcome) {
     case "ok":

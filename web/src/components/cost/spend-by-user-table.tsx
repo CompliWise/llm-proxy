@@ -1,11 +1,13 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import DataTable from "../ui/data-table";
-import type { CostUserAgg } from "../../lib/daily-history";
-import { spendByUserDisplayRows, type SpendByUserDisplayRow } from "../../lib/group-rows";
-import { formatCount, formatUsd } from "../../lib/format";
+import { useMemo } from "react";
 import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
+import type { CostUserAgg } from "../../lib/daily-history";
+import { formatCount, formatUsd } from "../../lib/format";
+import {
+  type SpendByUserDisplayRow,
+  spendByUserDisplayRows,
+} from "../../lib/group-rows";
+import DataTable from "../ui/data-table";
 
 interface SpendByUserTableProps {
   rows: CostUserAgg[];
@@ -15,7 +17,7 @@ export default function SpendByUserTable({ rows }: SpendByUserTableProps) {
   const { displayData, onSearchActiveChange, footer } = useCollapsedRows(
     rows,
     spendByUserDisplayRows,
-    "users",
+    "users"
   );
 
   const columns = useMemo<ColumnDef<SpendByUserDisplayRow, unknown>[]>(
@@ -27,7 +29,9 @@ export default function SpendByUserTable({ rows }: SpendByUserTableProps) {
         cell: ({ row }) => {
           const data = row.original;
           if (data.isOthers) {
-            return <span className="italic text-base-content/60">{data.label}</span>;
+            return (
+              <span className="text-base-content/60 italic">{data.label}</span>
+            );
           }
           return <span className="font-medium">{data.label}</span>;
         },
@@ -67,23 +71,26 @@ export default function SpendByUserTable({ rows }: SpendByUserTableProps) {
         meta: { alignRight: true },
         cell: ({ row }) => (
           <span className="text-base-content/70">
-            {formatCount(row.original.input_tokens)}/{formatCount(row.original.output_tokens)}
+            {formatCount(row.original.input_tokens)}/
+            {formatCount(row.original.output_tokens)}
           </span>
         ),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={displayData}
       columns={columns}
-      searchPlaceholder="Filter users…"
+      data={displayData}
       emptyMessage="No spend recorded for this window"
-      getRowId={(row) => (row.isOthers ? "__others__" : row.scope || String(row.requests))}
-      onSearchActiveChange={onSearchActiveChange}
       footer={footer}
+      getRowId={(row) =>
+        row.isOthers ? "__others__" : row.scope || String(row.requests)
+      }
+      onSearchActiveChange={onSearchActiveChange}
+      searchPlaceholder="Filter users…"
     />
   );
 }

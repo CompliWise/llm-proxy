@@ -27,7 +27,9 @@ export function PiiRequestActionBadge({
       >
         {action.label}
       </span>
-      <p className="mt-1 text-[0.65rem] leading-snug text-base-content/55">{action.detail}</p>
+      <p className="mt-1 text-[0.65rem] text-base-content/55 leading-snug">
+        {action.detail}
+      </p>
     </div>
   );
 }

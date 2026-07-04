@@ -7,7 +7,9 @@ import { adminLoginRedirectUrl } from "./lib/admin-path";
 // alone drops non-default ports and breaks share pages served from :9002.
 export const baseUrl = "";
 // OAuth redirects must hit the Go server directly (browser navigation, not XHR).
-export const authBaseUrl = import.meta.env.DEV ? "http://localhost:9002" : location.origin;
+export const authBaseUrl = import.meta.env.DEV
+  ? "http://localhost:9002"
+  : location.origin;
 
 export class APIClientError extends Error {
   status: number;
@@ -27,7 +29,10 @@ async function parseError(response: Response): Promise<string> {
   }
 }
 
-export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init?: RequestInit
+): Promise<T> {
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
     credentials: "include",

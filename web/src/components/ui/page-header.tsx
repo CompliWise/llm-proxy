@@ -3,19 +3,31 @@ import { useEffect, useState } from "react";
 import { relativeTime } from "../../lib/format";
 
 interface PageHeaderProps {
-  title: React.ReactNode;
-  description?: string;
   actions?: React.ReactNode;
+  description?: string;
+  title: React.ReactNode;
 }
 
-export default function PageHeader({ title, description, actions }: PageHeaderProps) {
+export default function PageHeader({
+  title,
+  description,
+  actions,
+}: PageHeaderProps) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-base-content">{title}</h1>
-        {description ? <p className="mt-1 max-w-2xl text-sm text-base-content/60">{description}</p> : null}
+        <h1 className="font-semibold text-2xl text-base-content tracking-tight">
+          {title}
+        </h1>
+        {description ? (
+          <p className="mt-1 max-w-2xl text-base-content/60 text-sm">
+            {description}
+          </p>
+        ) : null}
       </div>
-      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }
@@ -32,29 +44,39 @@ export function StatusBadge({
   inactiveLabel = "Inactive",
 }: StatusBadgeProps) {
   return (
-    <span className={`badge badge-sm ${active ? "badge-success badge-outline" : "badge-ghost"}`}>
+    <span
+      className={`badge badge-sm ${active ? "badge-success badge-outline" : "badge-ghost"}`}
+    >
       {active ? activeLabel : inactiveLabel}
     </span>
   );
 }
 
 export function ProviderBadge({ provider }: { provider: string }) {
-  return <span className="badge badge-sm badge-outline badge-primary">{provider}</span>;
+  return (
+    <span className="badge badge-sm badge-outline badge-primary">
+      {provider}
+    </span>
+  );
 }
 
 interface LiveIndicatorProps {
-  /** Epoch ms the data was last updated (e.g. TanStack Query dataUpdatedAt). */
-  updatedAt?: number;
   /** Whether a background refetch is in flight. */
   fetching?: boolean;
   /** Manual refresh trigger. */
   onRefresh?: () => void;
+  /** Epoch ms the data was last updated (e.g. TanStack Query dataUpdatedAt). */
+  updatedAt?: number;
 }
 
 // LiveIndicator surfaces the auto-refresh state common to LLM dashboards
 // (Helicone/Portkey): a pulsing "Live" dot, a relative "updated Xs ago"
 // label that ticks on its own, and a manual refresh button.
-export function LiveIndicator({ updatedAt, fetching, onRefresh }: LiveIndicatorProps) {
+export function LiveIndicator({
+  updatedAt,
+  fetching,
+  onRefresh,
+}: LiveIndicatorProps) {
   const [, setTick] = useState(0);
 
   useEffect(() => {
@@ -63,7 +85,7 @@ export function LiveIndicator({ updatedAt, fetching, onRefresh }: LiveIndicatorP
   }, []);
 
   return (
-    <div className="flex items-center gap-3 text-xs text-base-content/60">
+    <div className="flex items-center gap-3 text-base-content/60 text-xs">
       <span className="inline-flex items-center gap-1.5">
         <span className="relative flex h-2 w-2">
           <span
@@ -76,12 +98,16 @@ export function LiveIndicator({ updatedAt, fetching, onRefresh }: LiveIndicatorP
       {updatedAt ? <span>updated {relativeTime(updatedAt)}</span> : null}
       {onRefresh ? (
         <button
-          type="button"
+          aria-label="Refresh now"
           className="btn btn-ghost btn-xs gap-1"
           onClick={onRefresh}
-          aria-label="Refresh now"
+          type="button"
         >
-          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-none stroke-current" strokeWidth="2">
+          <svg
+            className="h-3.5 w-3.5 fill-none stroke-current"
+            strokeWidth="2"
+            viewBox="0 0 24 24"
+          >
             <path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
           </svg>
           Refresh
@@ -101,7 +127,7 @@ export function LoadingBlock() {
 
 export function ErrorAlert({ message }: { message: string }) {
   return (
-    <div role="alert" className="alert alert-error">
+    <div className="alert alert-error" role="alert">
       <span>{message}</span>
     </div>
   );
@@ -116,7 +142,7 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center">
-      <p className="max-w-sm text-sm text-base-content/60">{message}</p>
+      <p className="max-w-sm text-base-content/60 text-sm">{message}</p>
       {action}
     </div>
   );

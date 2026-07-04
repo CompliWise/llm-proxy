@@ -1,10 +1,9 @@
 import { Link } from "react-router-dom";
-
-import { StatusBadge } from "./page-header";
+import { useMe } from "../../hooks/queries";
 import { featureEnabled, featureLabel, featureMeta } from "../../lib/features";
 import { permissions } from "../../lib/permissions";
-import { useMe } from "../../hooks/queries";
 import type { ConfigSummary } from "../../types";
+import { StatusBadge } from "./page-header";
 
 export function FeatureFlagList({
   features,
@@ -24,30 +23,44 @@ export function FeatureFlagList({
   }));
 
   if (rows.length === 0) {
-    return <p className="text-sm text-base-content/50">No feature flags reported.</p>;
+    return (
+      <p className="text-base-content/50 text-sm">No feature flags reported.</p>
+    );
   }
 
   const enabledCount = rows.filter((r) => r.enabled).length;
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-base-content/70">
+      <p className="text-base-content/70 text-sm">
         <span className="font-medium text-base-content">{enabledCount}</span> of{" "}
-        <span className="font-medium text-base-content">{rows.length}</span> features enabled
+        <span className="font-medium text-base-content">{rows.length}</span>{" "}
+        features enabled
       </p>
       <ul className="divide-y divide-base-300/50 rounded-xl border border-base-300/60 bg-base-100/40">
         {rows.map((row) => (
-          <li key={row.name} className="flex items-center justify-between gap-3 px-3 py-2.5">
+          <li
+            className="flex items-center justify-between gap-3 px-3 py-2.5"
+            key={row.name}
+          >
             <div className="min-w-0">
-              <div className="truncate text-sm font-medium capitalize">{row.label}</div>
-              <div className="truncate text-xs text-base-content/50">{row.meta}</div>
+              <div className="truncate font-medium text-sm capitalize">
+                {row.label}
+              </div>
+              <div className="truncate text-base-content/50 text-xs">
+                {row.meta}
+              </div>
             </div>
-            <StatusBadge active={row.enabled} activeLabel="On" inactiveLabel="Off" />
+            <StatusBadge
+              active={row.enabled}
+              activeLabel="On"
+              inactiveLabel="Off"
+            />
           </li>
         ))}
       </ul>
       {showConfigLink ? (
-        <Link to="/config" className="btn btn-ghost btn-xs">
+        <Link className="btn btn-ghost btn-xs" to="/config">
           Full configuration
         </Link>
       ) : null}

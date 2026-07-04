@@ -1,11 +1,18 @@
-import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 type ToastKind = "success" | "error" | "info";
 
 interface Toast {
   id: number;
-  message: string;
   kind: ToastKind;
+  message: string;
 }
 
 interface ToastContextValue {
@@ -33,7 +40,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       <div className="toast toast-end toast-top z-[100]">
         {toasts.map((toast) => (
           <div
-            key={toast.id}
             className={`alert shadow-lg ${
               toast.kind === "success"
                 ? "alert-success"
@@ -41,6 +47,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                   ? "alert-error"
                   : "alert-info"
             }`}
+            key={toast.id}
           >
             <span>{toast.message}</span>
           </div>

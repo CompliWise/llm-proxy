@@ -1,34 +1,52 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import KeyLink from "../ui/key-link";
-import DataTable from "../ui/data-table";
-import { SectionPanel, type DataSource } from "../ui/data-source";
-import type { RangeKey } from "../../lib/daily-history";
-import { usageDisplayRows, type UsageDisplayRow, type UsageRow } from "../../lib/group-rows";
-import { formatCount } from "../../lib/format";
+import { useMemo } from "react";
 import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
+import type { RangeKey } from "../../lib/daily-history";
+import { formatCount } from "../../lib/format";
+import {
+  type UsageDisplayRow,
+  type UsageRow,
+  usageDisplayRows,
+} from "../../lib/group-rows";
 import type { APIKey } from "../../types";
+import { type DataSource, SectionPanel } from "../ui/data-source";
+import DataTable from "../ui/data-table";
+import KeyLink from "../ui/key-link";
 
 function rangeLabel(range: RangeKey): string {
-  return range === "today" ? "today" : `last ${range === "7d" ? "7" : "30"} days`;
+  return range === "today"
+    ? "today"
+    : `last ${range === "7d" ? "7" : "30"} days`;
 }
 
 interface UsageTableProps {
-  title: string;
-  rows: UsageRow[];
   keys?: APIKey[];
   linkKeys?: boolean;
-  source: DataSource;
   range: RangeKey;
+  rows: UsageRow[];
+  source: DataSource;
+  title: string;
 }
 
-export default function UsageTable({ title, rows, keys, linkKeys = false, source, range }: UsageTableProps) {
+export default function UsageTable({
+  title,
+  rows,
+  keys,
+  linkKeys = false,
+  source,
+  range,
+}: UsageTableProps) {
   const totalTokens = rows.reduce((sum, row) => sum + row.tokens, 0);
   const subtitle =
-    source === "redis" ? `Summed Redis rollups · ${rangeLabel(range)}` : `Live memory · ${rangeLabel(range)}`;
-  const entityLabel = title.replace("By ", "").toLowerCase() + "s";
-  const { displayData, onSearchActiveChange, footer } = useCollapsedRows(rows, usageDisplayRows, entityLabel);
+    source === "redis"
+      ? `Summed Redis rollups · ${rangeLabel(range)}`
+      : `Live memory · ${rangeLabel(range)}`;
+  const entityLabel = `${title.replace("By ", "").toLowerCase()}s`;
+  const { displayData, onSearchActiveChange, footer } = useCollapsedRows(
+    rows,
+    usageDisplayRows,
+    entityLabel
+  );
 
   const labelHeader = title.replace("By ", "");
 
@@ -41,10 +59,12 @@ export default function UsageTable({ title, rows, keys, linkKeys = false, source
         cell: ({ row }) => {
           const data = row.original;
           if (data.isOthers) {
-            return <span className="italic text-base-content/60">{data.label}</span>;
+            return (
+              <span className="text-base-content/60 italic">{data.label}</span>
+            );
           }
           return linkKeys ? (
-            <KeyLink keys={keys} scope={data.scope} label={data.label} />
+            <KeyLink keys={keys} label={data.label} scope={data.scope} />
           ) : (
             <span className="font-medium">{data.label}</span>
           );
@@ -66,29 +86,32 @@ export default function UsageTable({ title, rows, keys, linkKeys = false, source
       },
       {
         id: "share",
-        accessorFn: (row) => (totalTokens > 0 ? (row.tokens / totalTokens) * 100 : 0),
+        accessorFn: (row) =>
+          totalTokens > 0 ? (row.tokens / totalTokens) * 100 : 0,
         header: "Share",
         meta: { alignRight: true },
         cell: ({ row }) => (
           <span className="text-base-content/60">
-            {totalTokens > 0 ? `${((row.original.tokens / totalTokens) * 100).toFixed(1)}%` : "—"}
+            {totalTokens > 0
+              ? `${((row.original.tokens / totalTokens) * 100).toFixed(1)}%`
+              : "—"}
           </span>
         ),
       },
     ],
-    [keys, linkKeys, labelHeader, totalTokens],
+    [keys, linkKeys, labelHeader, totalTokens]
   );
 
   return (
-    <SectionPanel title={title} subtitle={subtitle} source={source}>
+    <SectionPanel source={source} subtitle={subtitle} title={title}>
       <DataTable
-        data={displayData}
         columns={columns}
-        searchPlaceholder={`Filter ${entityLabel}…`}
+        data={displayData}
         emptyMessage="No usage recorded today"
+        footer={footer}
         getRowId={(row) => (row.isOthers ? "__others__" : row.scope)}
         onSearchActiveChange={onSearchActiveChange}
-        footer={footer}
+        searchPlaceholder={`Filter ${entityLabel}…`}
       />
     </SectionPanel>
   );

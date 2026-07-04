@@ -1,6 +1,6 @@
-import { DataSourceBadge, type DataSource } from "./data-source";
-import { SpendLimitProgress } from "./spend-limit-progress";
 import { formatUsd } from "../../lib/format";
+import { type DataSource, DataSourceBadge } from "./data-source";
+import { SpendLimitProgress } from "./spend-limit-progress";
 
 /** Hero spend summary: today + month with limit progress bars. */
 export function SpendOverview({
@@ -30,24 +30,26 @@ export function SpendOverview({
     <div className="glass-panel p-5">
       <div className="mb-4">
         <h3 className="font-semibold">Spend</h3>
-        <p className="text-sm text-base-content/60">UTC day and calendar month · fleet rollups where available</p>
+        <p className="text-base-content/60 text-sm">
+          UTC day and calendar month · fleet rollups where available
+        </p>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">
         <SpendOverviewColumn
-          label="Today"
           hint="UTC calendar day"
-          spentUsd={todayUsd}
+          label="Today"
           limitCents={showDailyLimit ? dailyLimitCents : 0}
           limitLabel={showDailyLimit ? "Daily limit" : undefined}
           source={costSource}
+          spentUsd={todayUsd}
         />
         <SpendOverviewColumn
-          label="This month"
           hint={monthLabel}
-          spentUsd={monthUsd}
+          label="This month"
           limitCents={showMonthlyLimit ? monthlyLimitCents : 0}
           limitLabel={showMonthlyLimit ? "Monthly limit" : undefined}
           source={monthSource}
+          spentUsd={monthUsd}
         />
       </div>
     </div>
@@ -73,14 +75,20 @@ function SpendOverviewColumn({
     <div className="space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-sm font-medium text-base-content/80">{label}</p>
-          <p className="text-xs text-base-content/50">{hint}</p>
+          <p className="font-medium text-base-content/80 text-sm">{label}</p>
+          <p className="text-base-content/50 text-xs">{hint}</p>
         </div>
         <DataSourceBadge source={source} />
       </div>
-      <p className="text-3xl font-semibold tracking-tight">{formatUsd(spentUsd)}</p>
+      <p className="font-semibold text-3xl tracking-tight">
+        {formatUsd(spentUsd)}
+      </p>
       {limitLabel ? (
-        <SpendLimitProgress spentUsd={spentUsd} limitCents={limitCents} label={limitLabel} />
+        <SpendLimitProgress
+          label={limitLabel}
+          limitCents={limitCents}
+          spentUsd={spentUsd}
+        />
       ) : null}
     </div>
   );
@@ -108,20 +116,24 @@ export function SpendPeriodPanel({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h4 className="font-medium">{title}</h4>
-          {subtitle ? <p className="text-sm text-base-content/60">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="text-base-content/60 text-sm">{subtitle}</p>
+          ) : null}
         </div>
         <DataSourceBadge source={source} />
       </div>
       <div className="mb-3">
-        <p className="text-xs uppercase tracking-wide text-base-content/50">Total spend</p>
-        <p className="text-xl font-semibold">{formatUsd(spentUsd)}</p>
+        <p className="text-base-content/50 text-xs uppercase tracking-wide">
+          Total spend
+        </p>
+        <p className="font-semibold text-xl">{formatUsd(spentUsd)}</p>
       </div>
       {limitLabel ? (
         <div className="mb-3">
           <SpendLimitProgress
-            spentUsd={spentUsd}
-            limitCents={limitCents ?? 0}
             label={limitLabel}
+            limitCents={limitCents ?? 0}
+            spentUsd={spentUsd}
           />
         </div>
       ) : null}

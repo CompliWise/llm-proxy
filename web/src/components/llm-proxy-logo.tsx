@@ -1,8 +1,8 @@
 import logo from "../assets/llm-proxy-logo.png";
 
 interface LLMProxyLogoProps {
-  size?: "sm" | "md" | "lg";
   className?: string;
+  size?: "sm" | "md" | "lg";
 }
 
 const sizeClass = {
@@ -11,12 +11,15 @@ const sizeClass = {
   lg: "h-14 w-14",
 } as const;
 
-export default function LLMProxyLogo({ size = "md", className = "" }: LLMProxyLogoProps) {
+export default function LLMProxyLogo({
+  size = "md",
+  className = "",
+}: LLMProxyLogoProps) {
   return (
     <img
-      src={logo}
       alt="LLM Proxy"
       className={`rounded-2xl object-cover shadow-md ${sizeClass[size]} ${className}`.trim()}
+      src={logo}
     />
   );
 }

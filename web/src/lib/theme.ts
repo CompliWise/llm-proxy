@@ -8,19 +8,29 @@ const themeListeners = new Set<(t: Theme) => void>();
 const preferenceListeners = new Set<(p: ThemePreference) => void>();
 
 function systemTheme(): Theme {
-  if (typeof window === "undefined") return "light";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof window === "undefined") {
+    return "light";
+  }
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function resolveTheme(preference: ThemePreference): Theme {
-  if (preference === "auto") return systemTheme();
+  if (preference === "auto") {
+    return systemTheme();
+  }
   return preference;
 }
 
 function initialPreference(): ThemePreference {
-  if (typeof window === "undefined") return "auto";
+  if (typeof window === "undefined") {
+    return "auto";
+  }
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === "auto" || stored === "light" || stored === "dark") return stored;
+  if (stored === "auto" || stored === "light" || stored === "dark") {
+    return stored;
+  }
   return "auto";
 }
 
@@ -34,8 +44,13 @@ function notifyListeners() {
 }
 
 function applyTheme() {
-  if (typeof document === "undefined") return;
-  document.documentElement.setAttribute("data-theme", resolveTheme(currentPreference));
+  if (typeof document === "undefined") {
+    return;
+  }
+  document.documentElement.setAttribute(
+    "data-theme",
+    resolveTheme(currentPreference)
+  );
   notifyListeners();
 }
 
@@ -48,7 +63,9 @@ function onSystemThemeChange() {
 /** Applies the current theme to <html data-theme> — call once at startup. */
 export function initTheme() {
   applyTheme();
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined") {
+    return;
+  }
   mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
   mediaQuery.addEventListener("change", onSystemThemeChange);
 }

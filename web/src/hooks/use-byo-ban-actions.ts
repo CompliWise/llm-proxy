@@ -1,14 +1,13 @@
 import { useMemo } from "react";
-
-import { useBanBYOKey, useBYOBans, useMe, useUnbanBYOKey } from "./queries";
 import { permissions } from "../lib/permissions";
 import type { BYOBanRecord, Provider } from "../types";
+import { useBanBYOKey, useBYOBans, useMe, useUnbanBYOKey } from "./queries";
 
 export interface ByoBanActions {
-  canManage: boolean;
-  pending: boolean;
-  findBan: (provider: string, hash: string) => BYOBanRecord | undefined;
   ban: (provider: Provider, maskedId: string) => void;
+  canManage: boolean;
+  findBan: (provider: string, hash: string) => BYOBanRecord | undefined;
+  pending: boolean;
   unban: (provider: string, hash: string) => void;
 }
 

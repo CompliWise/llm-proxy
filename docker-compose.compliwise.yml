@@ -52,8 +52,8 @@ services:
   redis:
     image: redis:7-alpine
     container_name: compliwise-llm-proxy-redis
-    ports:
-      - "6379:6379"
+    # No host port — host may already run redis on :6379 (API REDIS_URL).
+    # llm-proxy reaches this service as redis:6379 on compliwise-ai-gateway.
     networks:
       - compliwise-ai-gateway
     restart: unless-stopped

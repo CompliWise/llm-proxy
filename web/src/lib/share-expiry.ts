@@ -1,4 +1,7 @@
-export function formatShareExpiry(expiresAt: string): { message: string; urgent: boolean } {
+export function formatShareExpiry(expiresAt: string): {
+  message: string;
+  urgent: boolean;
+} {
   const exp = new Date(expiresAt);
   if (Number.isNaN(exp.getTime())) {
     return { message: "Expiry time unavailable", urgent: false };

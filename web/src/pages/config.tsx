@@ -1,24 +1,29 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import DataTable from "../components/ui/data-table";
-import PageHeader, { ErrorAlert, LoadingBlock, StatusBadge } from "../components/ui/page-header";
+import { useMemo } from "react";
 import { SectionPanel } from "../components/ui/data-source";
+import DataTable from "../components/ui/data-table";
+import PageHeader, {
+  ErrorAlert,
+  LoadingBlock,
+  StatusBadge,
+} from "../components/ui/page-header";
 import { useConfig } from "../hooks/queries";
 import { featureEnabled, featureLabel, featureMeta } from "../lib/features";
 
 interface FeatureRow {
-  name: string;
-  label: string;
   enabled: boolean;
+  label: string;
   meta: string;
+  name: string;
 }
 
 export default function ConfigPage() {
   const { data, isLoading, error } = useConfig();
 
   const rows = useMemo<FeatureRow[]>(() => {
-    if (!data?.features) return [];
+    if (!data?.features) {
+      return [];
+    }
     return Object.entries(data.features).map(([name, feature]) => ({
       name,
       enabled: featureEnabled(feature),
@@ -33,35 +38,56 @@ export default function ConfigPage() {
         id: "feature",
         accessorKey: "label",
         header: "Feature",
-        cell: ({ getValue }) => <span className="font-medium capitalize">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="font-medium capitalize">{getValue<string>()}</span>
+        ),
       },
       {
         id: "status",
         accessorKey: "enabled",
         header: "Status",
         cell: ({ getValue }) => (
-          <StatusBadge active={getValue<boolean>()} activeLabel="Enabled" inactiveLabel="Disabled" />
+          <StatusBadge
+            active={getValue<boolean>()}
+            activeLabel="Enabled"
+            inactiveLabel="Disabled"
+          />
         ),
       },
       {
         id: "meta",
         accessorKey: "meta",
         header: "Backend / mode",
-        cell: ({ getValue }) => <span className="text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/70">{getValue<string>()}</span>
+        ),
       },
     ],
-    [],
+    []
   );
 
-  if (isLoading) return <LoadingBlock />;
-  if (error) {
-    return <ErrorAlert message={error instanceof Error ? error.message : "Failed to load config"} />;
+  if (isLoading) {
+    return <LoadingBlock />;
   }
-  if (!data) return null;
+  if (error) {
+    return (
+      <ErrorAlert
+        message={
+          error instanceof Error ? error.message : "Failed to load config"
+        }
+      />
+    );
+  }
+  if (!data) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Configuration" description="Feature flags and active backends." />
+      <PageHeader
+        description="Feature flags and active backends."
+        title="Configuration"
+      />
 
       {data.environment ? (
         <div className="alert alert-info">
@@ -71,13 +97,17 @@ export default function ConfigPage() {
         </div>
       ) : null}
 
-      <SectionPanel title="Features" subtitle="Loaded from proxy YAML / environment" source="config">
+      <SectionPanel
+        source="config"
+        subtitle="Loaded from proxy YAML / environment"
+        title="Features"
+      >
         <DataTable
-          data={rows}
           columns={columns}
-          searchPlaceholder="Filter features…"
+          data={rows}
           emptyMessage="No features configured"
           getRowId={(row) => row.name}
+          searchPlaceholder="Filter features…"
         />
       </SectionPanel>
     </div>

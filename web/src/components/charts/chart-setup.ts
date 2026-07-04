@@ -14,7 +14,9 @@ import {
 let registered = false;
 
 export function ensureChartsRegistered() {
-  if (registered) return;
+  if (registered) {
+    return;
+  }
   ChartJS.register(
     ArcElement,
     BarElement,
@@ -24,7 +26,7 @@ export function ensureChartsRegistered() {
     LinearScale,
     LineElement,
     PointElement,
-    Tooltip,
+    Tooltip
   );
   ChartJS.defaults.font.family =
     "Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
@@ -38,9 +40,15 @@ export function ensureChartsRegistered() {
  * `--color-*`; we fall back to a literal when running outside the browser.
  */
 export function cssVar(name: string, fallback: string, alpha = 1): string {
-  if (typeof window === "undefined") return fallback;
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  if (!raw) return fallback;
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+  const raw = getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
+  if (!raw) {
+    return fallback;
+  }
   if (alpha < 1) {
     // OKLCH values can be wrapped to apply alpha via color-mix.
     return `color-mix(in oklch, ${raw} ${Math.round(alpha * 100)}%, transparent)`;

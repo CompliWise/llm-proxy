@@ -18,6 +18,6 @@ export {
   can,
   canManageByoBans,
   canManageKeyPolicy,
-  permissions,
   type Permission,
+  permissions,
 } from "./permissions";

@@ -1,5 +1,9 @@
-import type { CostKeyAgg, CostUserAgg, ProviderSpendAgg } from "./daily-history";
-import type { NameCount } from "./daily-history";
+import type {
+  CostKeyAgg,
+  CostUserAgg,
+  NameCount,
+  ProviderSpendAgg,
+} from "./daily-history";
 
 export const DEFAULT_TOP_N = 10;
 
@@ -7,7 +11,11 @@ export function othersLabel(count: number): string {
   return `(and ${count} other${count === 1 ? "" : "s"})`;
 }
 
-export function splitTopByMetric<T>(rows: T[], getMetric: (row: T) => number, topN = DEFAULT_TOP_N) {
+export function splitTopByMetric<T>(
+  rows: T[],
+  getMetric: (row: T) => number,
+  topN = DEFAULT_TOP_N
+) {
   const sorted = [...rows].sort((a, b) => getMetric(b) - getMetric(a));
   return {
     top: sorted.slice(0, topN),
@@ -24,16 +32,23 @@ export function topDisplayRows<T>(
   aggregate: (rest: T[]) => T,
   label: (aggregated: T, count: number) => T,
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): (T & { isOthers?: boolean })[] {
   if (!collapse || rows.length <= topN) {
-    return [...rows].sort((a, b) => getMetric(b) - getMetric(a)) as (T & { isOthers?: boolean })[];
+    return [...rows].sort((a, b) => getMetric(b) - getMetric(a)) as (T & {
+      isOthers?: boolean;
+    })[];
   }
 
   const { top, rest } = splitTopByMetric(rows, getMetric, topN);
-  if (rest.length === 0) return top as (T & { isOthers?: boolean })[];
+  if (rest.length === 0) {
+    return top as (T & { isOthers?: boolean })[];
+  }
 
-  return [...top, { ...label(aggregate(rest), rest.length), isOthers: true }] as (T & { isOthers?: boolean })[];
+  return [
+    ...top,
+    { ...label(aggregate(rest), rest.length), isOthers: true },
+  ] as (T & { isOthers?: boolean })[];
 }
 
 export function aggregateCostKeys(rows: CostKeyAgg[]): CostKeyAgg {
@@ -55,7 +70,7 @@ export function aggregateCostKeys(rows: CostKeyAgg[]): CostKeyAgg {
       requests: 0,
       input_tokens: 0,
       output_tokens: 0,
-    },
+    }
   );
 }
 
@@ -66,7 +81,7 @@ export type SpendByKeyDisplayRow = CostKeyAgg & {
 export function spendByKeyDisplayRows(
   rows: CostKeyAgg[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): SpendByKeyDisplayRow[] {
   return topDisplayRows(
     rows,
@@ -77,7 +92,7 @@ export function spendByKeyDisplayRows(
       key_id: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
@@ -102,7 +117,7 @@ export function aggregateCostUsers(rows: CostUserAgg[]): CostUserAgg {
       requests: 0,
       input_tokens: 0,
       output_tokens: 0,
-    },
+    }
   );
 }
 
@@ -113,7 +128,7 @@ export type SpendByUserDisplayRow = CostUserAgg & {
 export function spendByUserDisplayRows(
   rows: CostUserAgg[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): SpendByUserDisplayRow[] {
   return topDisplayRows(
     rows,
@@ -125,7 +140,7 @@ export function spendByUserDisplayRows(
       label: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
@@ -136,7 +151,7 @@ export function aggregateProviders(rows: ProviderSpendAgg[]): ProviderSpendAgg {
       spend_usd: acc.spend_usd + row.spend_usd,
       requests: acc.requests + row.requests,
     }),
-    { name: "", spend_usd: 0, requests: 0 },
+    { name: "", spend_usd: 0, requests: 0 }
   );
 }
 
@@ -147,7 +162,7 @@ export type SpendByProviderDisplayRow = ProviderSpendAgg & {
 export function spendByProviderDisplayRows(
   rows: ProviderSpendAgg[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): SpendByProviderDisplayRow[] {
   return topDisplayRows(
     rows,
@@ -158,14 +173,14 @@ export function spendByProviderDisplayRows(
       name: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
 export interface UsageRow {
-  scope: string;
   label: string;
   requests: number;
+  scope: string;
   tokens: number;
 }
 
@@ -177,7 +192,7 @@ export function aggregateUsageRows(rows: UsageRow[]): UsageRow {
       requests: acc.requests + row.requests,
       tokens: acc.tokens + row.tokens,
     }),
-    { scope: "", label: "", requests: 0, tokens: 0 },
+    { scope: "", label: "", requests: 0, tokens: 0 }
   );
 }
 
@@ -188,7 +203,7 @@ export type UsageDisplayRow = UsageRow & {
 export function usageDisplayRows(
   rows: UsageRow[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): UsageDisplayRow[] {
   return topDisplayRows(
     rows,
@@ -200,7 +215,7 @@ export function usageDisplayRows(
       label: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
@@ -210,7 +225,7 @@ export function aggregateNameCounts(rows: NameCount[]): NameCount {
       name: "",
       count: acc.count + row.count,
     }),
-    { name: "", count: 0 },
+    { name: "", count: 0 }
   );
 }
 
@@ -221,7 +236,7 @@ export type NameCountDisplayRow = NameCount & {
 export function nameCountDisplayRows(
   rows: NameCount[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): NameCountDisplayRow[] {
   return topDisplayRows(
     rows,
@@ -232,21 +247,21 @@ export function nameCountDisplayRows(
       name: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
 export interface ScopeUsageRow {
-  scope: string;
   label: string;
   requests: number;
+  scope: string;
   tokens: number;
 }
 
 export function scopeUsageDisplayRows(
   rows: ScopeUsageRow[],
   topN = DEFAULT_TOP_N,
-  collapse = true,
+  collapse = true
 ): (ScopeUsageRow & { isOthers?: boolean })[] {
   return topDisplayRows(
     rows,
@@ -258,7 +273,7 @@ export function scopeUsageDisplayRows(
       label: othersLabel(count),
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
@@ -267,13 +282,17 @@ export function donutSlices(
   values: number[],
   colors: string[],
   topN = 8,
-  othersColor?: string,
+  othersColor?: string
 ): { labels: string[]; values: number[]; colors: string[] } {
   if (labels.length <= topN) {
     return { labels, values, colors };
   }
 
-  const rows = labels.map((label, i) => ({ label, value: values[i] ?? 0, color: colors[i] ?? colors[0] }));
+  const rows = labels.map((label, i) => ({
+    label,
+    value: values[i] ?? 0,
+    color: colors[i] ?? colors[0],
+  }));
   const sorted = [...rows].sort((a, b) => b.value - a.value);
   const top = sorted.slice(0, topN);
   const rest = sorted.slice(topN);
@@ -282,6 +301,9 @@ export function donutSlices(
   return {
     labels: [...top.map((row) => row.label), othersLabel(rest.length)],
     values: [...top.map((row) => row.value), restTotal],
-    colors: [...top.map((row) => row.color), othersColor ?? "rgba(128,128,128,0.45)"],
+    colors: [
+      ...top.map((row) => row.color),
+      othersColor ?? "rgba(128,128,128,0.45)",
+    ],
   };
 }

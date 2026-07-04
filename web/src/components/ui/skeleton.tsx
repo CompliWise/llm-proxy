@@ -6,7 +6,7 @@ export function StatSkeleton({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="glass-panel space-y-3 px-5 py-4">
+        <div className="glass-panel space-y-3 px-5 py-4" key={i}>
           <div className="skeleton h-3 w-20" />
           <div className="skeleton h-7 w-24" />
           <div className="skeleton h-3 w-28" />

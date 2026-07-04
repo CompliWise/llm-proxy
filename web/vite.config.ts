@@ -9,7 +9,11 @@ const apiTarget = process.env.VITE_API_PROXY_TARGET || "http://localhost:9002";
 function redirectBareAdmin() {
   return {
     name: "redirect-bare-admin",
-    configureServer(server: { middlewares: { use: (fn: (req: any, res: any, next: () => void) => void) => void } }) {
+    configureServer(server: {
+      middlewares: {
+        use: (fn: (req: any, res: any, next: () => void) => void) => void;
+      };
+    }) {
       server.middlewares.use((req, res, next) => {
         const url = (req.url ?? "").split("?")[0];
         if (url === "/admin") {

@@ -3,12 +3,12 @@ import {
   parseMaskedCredentialId,
 } from "../../lib/format";
 
-type MaskedCredentialIdProps = {
-  value: string;
+interface MaskedCredentialIdProps {
   className?: string;
   /** Show a short "hash" label before the digest (default true). */
   showHashLabel?: boolean;
-};
+  value: string;
+}
 
 export function MaskedCredentialId({
   value,
@@ -17,7 +17,9 @@ export function MaskedCredentialId({
 }: MaskedCredentialIdProps) {
   const parsed = parseMaskedCredentialId(value);
   if (!parsed) {
-    return <span className={`font-mono text-xs ${className}`.trim()}>{value}</span>;
+    return (
+      <span className={`font-mono text-xs ${className}`.trim()}>{value}</span>
+    );
   }
 
   return (
@@ -28,7 +30,7 @@ export function MaskedCredentialId({
       <span>{parsed.prefix}</span>
       <span className="text-base-content/35">…</span>
       {showHashLabel ? (
-        <span className="text-[0.65rem] font-sans uppercase tracking-wide text-base-content/45">
+        <span className="font-sans text-[0.65rem] text-base-content/45 uppercase tracking-wide">
           hash
         </span>
       ) : null}

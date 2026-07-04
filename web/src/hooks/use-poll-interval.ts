@@ -7,7 +7,9 @@ export const LIVE_POLL_MS = 5000;
 export const BACKGROUND_POLL_MS = 60_000;
 
 function intervalForVisibility(visibleMs: number, hiddenMs: number): number {
-  if (typeof document === "undefined") return visibleMs;
+  if (typeof document === "undefined") {
+    return visibleMs;
+  }
   return document.visibilityState === "visible" ? visibleMs : hiddenMs;
 }
 
@@ -18,16 +20,19 @@ function intervalForVisibility(visibleMs: number, hiddenMs: number): number {
  */
 export function usePollInterval(
   visibleMs = LIVE_POLL_MS,
-  hiddenMs = BACKGROUND_POLL_MS,
+  hiddenMs = BACKGROUND_POLL_MS
 ): number {
-  const [interval, setInterval] = useState(() => intervalForVisibility(visibleMs, hiddenMs));
+  const [interval, setInterval] = useState(() =>
+    intervalForVisibility(visibleMs, hiddenMs)
+  );
 
   useEffect(() => {
     const onVisibilityChange = () => {
       setInterval(intervalForVisibility(visibleMs, hiddenMs));
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [visibleMs, hiddenMs]);
 
   return interval;

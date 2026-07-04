@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
-
-import DataTable from "../ui/data-table";
 import { keyDetailPath } from "../../lib/key-routes";
 import type { KeyRequestRecord } from "../../types";
+import DataTable from "../ui/data-table";
 
 function formatTime(value?: string): string {
-  if (!value) return "—";
+  if (!value) {
+    return "—";
+  }
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
   return d.toLocaleString();
 }
 
@@ -24,10 +27,10 @@ function StatusBadge({ status }: { status: KeyRequestRecord["status"] }) {
 }
 
 interface KeyRequestsTableProps {
-  requests: KeyRequestRecord[];
   busyId?: string | null;
   onApprove: (request: KeyRequestRecord) => void;
   onReject: (request: KeyRequestRecord) => void;
+  requests: KeyRequestRecord[];
 }
 
 export default function KeyRequestsTable({
@@ -69,7 +72,9 @@ export default function KeyRequestsTable({
         id: "status",
         accessorKey: "status",
         header: "Status",
-        cell: ({ getValue }) => <StatusBadge status={getValue<KeyRequestRecord["status"]>()} />,
+        cell: ({ getValue }) => (
+          <StatusBadge status={getValue<KeyRequestRecord["status"]>()} />
+        ),
       },
       {
         id: "created_at",
@@ -84,13 +89,15 @@ export default function KeyRequestsTable({
         cell: ({ row }) =>
           row.original.created_key ? (
             <Link
-              to={keyDetailPath(row.original.created_key!)}
               className="link link-primary"
+              to={keyDetailPath(row.original.created_key!)}
             >
               View
             </Link>
           ) : row.original.rejection_reason ? (
-            <span className="text-sm text-error">{row.original.rejection_reason}</span>
+            <span className="text-error text-sm">
+              {row.original.rejection_reason}
+            </span>
           ) : (
             "—"
           ),
@@ -100,24 +107,28 @@ export default function KeyRequestsTable({
         header: "",
         cell: ({ row }) => {
           const req = row.original;
-          if (req.status !== "pending") return null;
+          if (req.status !== "pending") {
+            return null;
+          }
           const busy = busyId === req.id;
           return (
             <div className="flex justify-end gap-2">
               <button
-                type="button"
                 className="btn btn-primary btn-xs"
                 disabled={busy}
                 onClick={() => onApprove(req)}
+                type="button"
               >
-                {busy ? <span className="loading loading-spinner loading-xs" /> : null}
+                {busy ? (
+                  <span className="loading loading-spinner loading-xs" />
+                ) : null}
                 Approve
               </button>
               <button
-                type="button"
                 className="btn btn-ghost btn-xs text-error"
                 disabled={busy}
                 onClick={() => onReject(req)}
+                type="button"
               >
                 Reject
               </button>
@@ -126,10 +137,14 @@ export default function KeyRequestsTable({
         },
       },
     ],
-    [busyId, onApprove, onReject],
+    [busyId, onApprove, onReject]
   );
 
   return (
-    <DataTable columns={columns} data={requests} emptyMessage="No key requests yet" />
+    <DataTable
+      columns={columns}
+      data={requests}
+      emptyMessage="No key requests yet"
+    />
   );
 }

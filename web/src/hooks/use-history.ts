@@ -16,13 +16,20 @@ export const LIVE_TREND_CHART_SUBTITLE =
  * changes across polls. The admin API only exposes point-in-time stats, so
  * trend charts are built by sampling here rather than from server history.
  */
-export function useHistory(value: number | undefined, deps: unknown[] = []): HistoryPoint[] {
+export function useHistory(
+  value: number | undefined,
+  deps: unknown[] = []
+): HistoryPoint[] {
   const [points, setPoints] = useState<HistoryPoint[]>([]);
   const lastRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (value === undefined || Number.isNaN(value)) return;
-    if (lastRef.current === value && points.length > 0) return;
+    if (value === undefined || Number.isNaN(value)) {
+      return;
+    }
+    if (lastRef.current === value && points.length > 0) {
+      return;
+    }
     lastRef.current = value;
     setPoints((prev) => {
       const next = [...prev, { t: Date.now(), value }];
@@ -31,7 +38,7 @@ export function useHistory(value: number | undefined, deps: unknown[] = []): His
         : next;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value, ...deps]);
+  }, [value, ...deps, points.length]);
 
   return points;
 }
@@ -44,7 +51,7 @@ export function liveTrendCaption(points: HistoryPoint[]): string {
   if (points.length === 1) {
     return "1 sample — new points appear when the metric changes";
   }
-  const spanSec = Math.round((points[points.length - 1].t - points[0].t) / 1000);
+  const spanSec = Math.round((points.at(-1).t - points[0].t) / 1000);
   const mins = Math.floor(spanSec / 60);
   const secs = spanSec % 60;
   const span = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;

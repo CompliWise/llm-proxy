@@ -1,7 +1,9 @@
-import { parseMaskedCredentialId } from "./format";
 import type { Provider } from "../types";
+import { parseMaskedCredentialId } from "./format";
 
-export function parseCredentialHashFromMaskedId(maskedId: string): string | null {
+export function parseCredentialHashFromMaskedId(
+  maskedId: string
+): string | null {
   return parseMaskedCredentialId(maskedId)?.hash ?? null;
 }
 
@@ -17,13 +19,20 @@ const BYO_PREFIX_PROVIDERS: [string, Provider][] = [
 export function inferProviderFromMaskedId(maskedId: string): Provider | null {
   const head = maskedId.split(/…|\u2026|\.\.\./)[0] ?? "";
   for (const [prefix, provider] of BYO_PREFIX_PROVIDERS) {
-    if (head.startsWith(prefix)) return provider;
+    if (head.startsWith(prefix)) {
+      return provider;
+    }
   }
   return null;
 }
 
-export function byoBanLookupKey(provider: string, maskedId: string): string | null {
+export function byoBanLookupKey(
+  provider: string,
+  maskedId: string
+): string | null {
   const hash = parseCredentialHashFromMaskedId(maskedId);
-  if (!hash) return null;
+  if (!hash) {
+    return null;
+  }
   return `${provider}:${hash}`;
 }

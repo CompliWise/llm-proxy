@@ -70,8 +70,13 @@ const orgBulk = new Set<Permission>(ORG_BULK);
 const editorPlus = new Set<Permission>(EDITOR_PLUS);
 const viewerPlus = new Set<Permission>(VIEWER_PLUS);
 
-export function can(role: AdminRole | undefined, permission: Permission): boolean {
-  if (!role) return false;
+export function can(
+  role: AdminRole | undefined,
+  permission: Permission
+): boolean {
+  if (!role) {
+    return false;
+  }
   if (adminOnly.has(permission)) {
     return role === "admin";
   }
@@ -98,18 +103,25 @@ export const permissions = {
   isViewer: (role: AdminRole | undefined) => role === "viewer",
   isEditor: (role: AdminRole | undefined) => role === "editor",
   isAdmin: (role: AdminRole | undefined) => role === "admin",
-  canViewMonitoring: (role: AdminRole | undefined) => can(role, "view_monitoring"),
-  canManageKeyPolicy: (role: AdminRole | undefined) => can(role, "update_key_policy"),
-  canPasteProviderKey: (role: AdminRole | undefined) => can(role, "paste_provider_key"),
+  canViewMonitoring: (role: AdminRole | undefined) =>
+    can(role, "view_monitoring"),
+  canManageKeyPolicy: (role: AdminRole | undefined) =>
+    can(role, "update_key_policy"),
+  canPasteProviderKey: (role: AdminRole | undefined) =>
+    can(role, "paste_provider_key"),
   canDeleteKeys: (role: AdminRole | undefined) =>
-    (can(role, "delete_own_key") && role === "viewer") || can(role, "delete_org_key"),
-  canDeleteOrgKeys: (role: AdminRole | undefined) => can(role, "delete_org_key"),
+    (can(role, "delete_own_key") && role === "viewer") ||
+    can(role, "delete_org_key"),
+  canDeleteOrgKeys: (role: AdminRole | undefined) =>
+    can(role, "delete_org_key"),
   canManageUsers: (role: AdminRole | undefined) => can(role, "manage_users"),
   canManageByo: (role: AdminRole | undefined) => can(role, "manage_byo"),
-  canReviewKeyRequests: (role: AdminRole | undefined) => can(role, "review_key_request"),
+  canReviewKeyRequests: (role: AdminRole | undefined) =>
+    can(role, "review_key_request"),
   canRequestServiceKey: (role: AdminRole | undefined) =>
     can(role, "create_key_request"),
-  requiresProvisionedKeysOnly: (role: AdminRole | undefined) => !can(role, "paste_provider_key"),
+  requiresProvisionedKeysOnly: (role: AdminRole | undefined) =>
+    !can(role, "paste_provider_key"),
   canBulkGeneratePersonalKeys: (role: AdminRole | undefined) =>
     can(role, "bulk_generate_personal_keys"),
   canBulkGenerateOrgKeys: (role: AdminRole | undefined) =>

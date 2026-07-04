@@ -1,29 +1,30 @@
 import { Link } from "react-router-dom";
-
-import { keyDetailPath, resolveKeyLinkTarget } from "../../lib/key-routes";
 import { maskKeyId, parseMaskedCredentialId } from "../../lib/format";
-import { MaskedCredentialId } from "./masked-credential-id";
+import { keyDetailPath, resolveKeyLinkTarget } from "../../lib/key-routes";
 import type { APIKey } from "../../types";
+import { MaskedCredentialId } from "./masked-credential-id";
 
 function renderCredentialId(value: string, className: string) {
   if (parseMaskedCredentialId(value)) {
-    return <MaskedCredentialId value={value} className={className} />;
+    return <MaskedCredentialId className={className} value={value} />;
   }
-  return <span className={`font-mono text-xs ${className}`.trim()}>{value}</span>;
+  return (
+    <span className={`font-mono text-xs ${className}`.trim()}>{value}</span>
+  );
 }
 
-type KeyLinkProps = {
+interface KeyLinkProps {
+  className?: string;
   keys?: APIKey[];
   keyValue?: string;
-  maskedId?: string;
-  scope?: string;
   /** Primary label; falls back to key description or masked id. */
   label?: string;
+  maskedId?: string;
+  scope?: string;
   /** Secondary mono line; defaults to masked id when showMasked is set. */
   secondaryLabel?: string;
   showMasked?: boolean;
-  className?: string;
-};
+}
 
 export default function KeyLink({
   keys,
@@ -36,13 +37,18 @@ export default function KeyLink({
   className = "",
 }: KeyLinkProps) {
   const target = resolveKeyLinkTarget(keys, { keyValue, maskedId, scope });
-  const record = target && keys ? keys.find((k) => k.key === target) : undefined;
+  const record =
+    target && keys ? keys.find((k) => k.key === target) : undefined;
   const masked = maskedId ?? (target ? maskKeyId(target) : undefined);
   const primary = label ?? record?.description ?? masked ?? target ?? "—";
   const secondary = secondaryLabel ?? masked;
 
   const primaryIsMaskedId = Boolean(masked && primary === masked);
-  const primaryNode = primaryIsMaskedId ? renderCredentialId(primary, "") : <span>{primary}</span>;
+  const primaryNode = primaryIsMaskedId ? (
+    renderCredentialId(primary, "")
+  ) : (
+    <span>{primary}</span>
+  );
 
   if (!target) {
     return (
@@ -58,14 +64,19 @@ export default function KeyLink({
   }
 
   return (
-    <Link to={keyDetailPath(target)} className={`link link-hover link-primary no-underline ${className}`.trim()}>
+    <Link
+      className={`link link-hover link-primary no-underline ${className}`.trim()}
+      to={keyDetailPath(target)}
+    >
       {primaryIsMaskedId ? (
         renderCredentialId(primary, "")
       ) : (
         <span className="font-medium">{primary}</span>
       )}
       {showMasked && secondary ? (
-        <span className="mt-0.5 block opacity-70">{renderCredentialId(secondary, "")}</span>
+        <span className="mt-0.5 block opacity-70">
+          {renderCredentialId(secondary, "")}
+        </span>
       ) : null}
     </Link>
   );

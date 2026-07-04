@@ -3,7 +3,7 @@ export const ADMIN_BASENAME = "/admin";
 /** Path inside the SPA router (basename stripped), e.g. `/keys`. */
 export function adminAppPath(
   pathname: string = window.location.pathname,
-  search: string = window.location.search,
+  search: string = window.location.search
 ): string {
   let path = pathname;
   if (path === ADMIN_BASENAME || path === `${ADMIN_BASENAME}/`) {

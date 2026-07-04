@@ -1,28 +1,34 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import KeyLink from "../ui/key-link";
+import { useMemo } from "react";
+import type { ByoBanActions } from "../../hooks/use-byo-ban-actions";
+import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
+import { inferProviderFromMaskedId } from "../../lib/byo-ban";
+import type { CostKeyAgg } from "../../lib/daily-history";
+import { formatCount, formatUsd } from "../../lib/format";
+import {
+  type SpendByKeyDisplayRow,
+  spendByKeyDisplayRows,
+} from "../../lib/group-rows";
+import type { APIKey } from "../../types";
 import ByoBanButton from "../byo/ban-by-key-button";
 import DataTable from "../ui/data-table";
-import type { CostKeyAgg } from "../../lib/daily-history";
-import { spendByKeyDisplayRows, type SpendByKeyDisplayRow } from "../../lib/group-rows";
-import { formatCount, formatUsd } from "../../lib/format";
-import { inferProviderFromMaskedId } from "../../lib/byo-ban";
-import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
-import type { ByoBanActions } from "../../hooks/use-byo-ban-actions";
-import type { APIKey } from "../../types";
+import KeyLink from "../ui/key-link";
 
 interface SpendByKeyTableProps {
-  rows: CostKeyAgg[];
-  keys: APIKey[];
   byoBanActions: ByoBanActions;
+  keys: APIKey[];
+  rows: CostKeyAgg[];
 }
 
-export default function SpendByKeyTable({ rows, keys, byoBanActions }: SpendByKeyTableProps) {
+export default function SpendByKeyTable({
+  rows,
+  keys,
+  byoBanActions,
+}: SpendByKeyTableProps) {
   const { displayData, onSearchActiveChange, footer } = useCollapsedRows(
     rows,
     spendByKeyDisplayRows,
-    "keys",
+    "keys"
   );
 
   const columns = useMemo<ColumnDef<SpendByKeyDisplayRow, unknown>[]>(
@@ -34,17 +40,24 @@ export default function SpendByKeyTable({ rows, keys, byoBanActions }: SpendByKe
         cell: ({ row }) => {
           const data = row.original;
           if (data.isOthers) {
-            return <span className="italic text-base-content/60">{data.key_id}</span>;
+            return (
+              <span className="text-base-content/60 italic">{data.key_id}</span>
+            );
           }
           const inferredProvider = inferProviderFromMaskedId(data.key_id);
           return data.key_id ? (
             <div className="flex items-center gap-2">
-              <KeyLink keys={keys} maskedId={data.key_id} showMasked className="text-xs" />
+              <KeyLink
+                className="text-xs"
+                keys={keys}
+                maskedId={data.key_id}
+                showMasked
+              />
               {inferredProvider ? (
                 <ByoBanButton
+                  actions={byoBanActions}
                   maskedId={data.key_id}
                   provider={inferredProvider}
-                  actions={byoBanActions}
                 />
               ) : null}
             </div>
@@ -88,23 +101,26 @@ export default function SpendByKeyTable({ rows, keys, byoBanActions }: SpendByKe
         meta: { alignRight: true },
         cell: ({ row }) => (
           <span className="text-base-content/70">
-            {formatCount(row.original.input_tokens)}/{formatCount(row.original.output_tokens)}
+            {formatCount(row.original.input_tokens)}/
+            {formatCount(row.original.output_tokens)}
           </span>
         ),
       },
     ],
-    [keys, byoBanActions],
+    [keys, byoBanActions]
   );
 
   return (
     <DataTable
-      data={displayData}
       columns={columns}
-      searchPlaceholder="Filter keys…"
+      data={displayData}
       emptyMessage="No spend recorded for this window"
-      getRowId={(row) => (row.isOthers ? "__others__" : row.key_id || String(row.requests))}
-      onSearchActiveChange={onSearchActiveChange}
       footer={footer}
+      getRowId={(row) =>
+        row.isOthers ? "__others__" : row.key_id || String(row.requests)
+      }
+      onSearchActiveChange={onSearchActiveChange}
+      searchPlaceholder="Filter keys…"
     />
   );
 }

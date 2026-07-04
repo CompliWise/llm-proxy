@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 
-export type DataSource = "memory" | "redis" | "redislive" | "client" | "config" | "dynamodb";
+export type DataSource =
+  | "memory"
+  | "redis"
+  | "redislive"
+  | "client"
+  | "config"
+  | "dynamodb";
 
-const META: Record<DataSource, { label: string; hint: string; className: string; dot: string }> = {
+const META: Record<
+  DataSource,
+  { label: string; hint: string; className: string; dot: string }
+> = {
   memory: {
     label: "Memory",
     hint: "In-process today UTC — lost on proxy restart",
@@ -77,12 +86,21 @@ export function DataSourceBadge({
 }
 
 export function DataSourceLegend() {
-  const items: DataSource[] = ["memory", "redis", "client", "config", "dynamodb"];
+  const items: DataSource[] = [
+    "memory",
+    "redis",
+    "client",
+    "config",
+    "dynamodb",
+  ];
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-base-100/80 px-4 py-2.5 text-xs ring-1 ring-base-300/60">
       <span className="font-medium text-base-content/70">Where data lives</span>
       {items.map((source) => (
-        <span key={source} className="inline-flex items-center gap-1.5 text-base-content/60">
+        <span
+          className="inline-flex items-center gap-1.5 text-base-content/60"
+          key={source}
+        >
           <DataSourceBadge source={source} />
           <span>{META[source].hint}</span>
         </span>
@@ -124,13 +142,17 @@ export function DataSourceKey() {
   return (
     <>
       <button
-        type="button"
-        onClick={toggle}
-        className="btn btn-sm fixed bottom-5 right-5 z-50 gap-2 rounded-full shadow-lg"
         aria-expanded={open}
         aria-label="Toggle data source key"
+        className="btn btn-sm fixed right-5 bottom-5 z-50 gap-2 rounded-full shadow-lg"
+        onClick={toggle}
+        type="button"
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="1.8">
+        <svg
+          className="h-4 w-4 fill-none stroke-current"
+          strokeWidth="1.8"
+          viewBox="0 0 24 24"
+        >
           <circle cx="12" cy="12" r="9" />
           <path d="M12 16v-4M12 8h.01" />
         </svg>
@@ -139,36 +161,48 @@ export function DataSourceKey() {
 
       {open ? (
         <button
-          type="button"
           aria-label="Close data source key"
           className="fixed inset-0 z-40 bg-black/20 backdrop-blur-[1px]"
           onClick={toggle}
+          type="button"
         />
       ) : null}
 
       <aside
-        className={`fixed bottom-0 right-0 top-0 z-50 flex w-80 max-w-[88vw] flex-col border-l border-base-300/70 bg-base-100 shadow-2xl transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"
-          }`}
+        className={`fixed top-0 right-0 bottom-0 z-50 flex w-80 max-w-[88vw] flex-col border-base-300/70 border-l bg-base-100 shadow-2xl transition-transform duration-200 ${
+          open ? "translate-x-0" : "translate-x-full"
+        }`}
       >
-        <div className="flex items-center justify-between border-b border-base-300/70 px-5 py-4">
+        <div className="flex items-center justify-between border-base-300/70 border-b px-5 py-4">
           <div>
             <h3 className="font-semibold">Where data lives</h3>
-            <p className="text-xs text-base-content/60">What each badge means</p>
+            <p className="text-base-content/60 text-xs">
+              What each badge means
+            </p>
           </div>
-          <button type="button" className="btn btn-ghost btn-sm btn-square" onClick={toggle} aria-label="Close">
-            <svg viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2">
+          <button
+            aria-label="Close"
+            className="btn btn-ghost btn-sm btn-square"
+            onClick={toggle}
+            type="button"
+          >
+            <svg
+              className="h-4 w-4 fill-none stroke-current"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
               <path d="M6 6l12 12M18 6 6 18" />
             </svg>
           </button>
         </div>
 
         <div className="flex-1 space-y-5 overflow-y-auto px-5 py-4">
-          <KeyGroup title="Durable" caption="Survives proxy restarts">
+          <KeyGroup caption="Survives proxy restarts" title="Durable">
             {KEY_ITEMS.filter((i) => i.durable).map((i) => (
               <KeyRow key={i.source} source={i.source} />
             ))}
           </KeyGroup>
-          <KeyGroup title="Ephemeral" caption="Cleared on restart / tab close">
+          <KeyGroup caption="Cleared on restart / tab close" title="Ephemeral">
             {KEY_ITEMS.filter((i) => !i.durable).map((i) => (
               <KeyRow key={i.source} source={i.source} />
             ))}
@@ -191,8 +225,10 @@ function KeyGroup({
   return (
     <div>
       <div className="mb-2">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-[0.16em] text-base-content/40">{title}</p>
-        <p className="text-xs text-base-content/50">{caption}</p>
+        <p className="font-semibold text-[0.65rem] text-base-content/40 uppercase tracking-[0.16em]">
+          {title}
+        </p>
+        <p className="text-base-content/50 text-xs">{caption}</p>
       </div>
       <div className="space-y-2">{children}</div>
     </div>
@@ -203,10 +239,12 @@ function KeyRow({ source }: { source: DataSource }) {
   const meta = META[source];
   return (
     <div className="flex items-start gap-3 rounded-xl bg-base-200/50 px-3 py-2.5">
-      <span className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`} />
+      <span
+        className={`mt-1 inline-block h-2.5 w-2.5 shrink-0 rounded-full ${meta.dot}`}
+      />
       <div className="min-w-0">
         <DataSourceBadge source={source} />
-        <p className="mt-1 text-xs text-base-content/60">{meta.hint}</p>
+        <p className="mt-1 text-base-content/60 text-xs">{meta.hint}</p>
       </div>
     </div>
   );
@@ -226,10 +264,10 @@ export function RangeToggle<T extends string>({
     <div className="join">
       {options.map((opt) => (
         <button
-          key={opt.key}
-          type="button"
-          onClick={() => onChange(opt.key)}
           className={`btn join-item btn-xs ${value === opt.key ? "btn-primary" : "btn-ghost"}`}
+          key={opt.key}
+          onClick={() => onChange(opt.key)}
+          type="button"
         >
           {opt.label}
         </button>
@@ -276,12 +314,14 @@ export function SectionPanel({
 }) {
   return (
     <div className="glass-panel overflow-hidden">
-      <div className="border-b border-base-300/70 px-5 py-4">
+      <div className="border-base-300/70 border-b px-5 py-4">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="font-semibold">{title}</h3>
           {source ? <DataSourceBadge source={source} /> : null}
         </div>
-        {subtitle ? <p className="mt-1 text-sm text-base-content/60">{subtitle}</p> : null}
+        {subtitle ? (
+          <p className="mt-1 text-base-content/60 text-sm">{subtitle}</p>
+        ) : null}
       </div>
       {children}
     </div>

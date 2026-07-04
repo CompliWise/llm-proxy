@@ -13,23 +13,23 @@ export interface ViewerLimits {
 }
 
 export interface AdminUser {
+  can_bypass_pii_off_non_bedrock_policy?: boolean;
+  editor_limits?: EditorLimits;
   email: string;
   name?: string;
   picture?: string;
   role?: AdminRole;
-  can_bypass_pii_off_non_bedrock_policy?: boolean;
-  editor_limits?: EditorLimits;
   viewer_limits?: ViewerLimits;
 }
 
 export interface AdminUserRecord {
+  created_at: string;
   email: string;
+  last_login_at?: string;
   name?: string;
   picture?: string;
   role: AdminRole;
-  created_at: string;
   updated_at: string;
-  last_login_at?: string;
 }
 
 export interface CreateAdminUserRequest {
@@ -44,24 +44,24 @@ export interface UpdateAdminUserRoleRequest {
 export type KeyRequestStatus = "pending" | "approved" | "rejected";
 
 export interface KeyRequestRecord {
-  id: string;
-  requester_email: string;
-  provider: Provider;
-  description: string;
-  daily_cost_limit?: number;
-  status: KeyRequestStatus;
   created_at: string;
-  updated_at: string;
-  reviewed_by?: string;
-  reviewed_at?: string;
   created_key?: string;
+  daily_cost_limit?: number;
+  description: string;
+  id: string;
+  provider: Provider;
   rejection_reason?: string;
+  requester_email: string;
+  reviewed_at?: string;
+  reviewed_by?: string;
+  status: KeyRequestStatus;
+  updated_at: string;
 }
 
 export interface CreateKeyRequestBody {
-  provider: Provider;
-  description: string;
   daily_cost_limit?: number;
+  description: string;
+  provider: Provider;
 }
 
 export interface ReviewKeyRequestBody {
@@ -70,33 +70,33 @@ export interface ReviewKeyRequestBody {
 }
 
 export interface APIKey {
-  key: string;
-  provider: Provider;
-  description?: string;
+  base_url?: string;
+  created_at: string;
   daily_cost_limit: number;
+  description?: string;
+  enabled: boolean;
+  expires_at?: string | null;
+  first_request_at?: string | null;
+  key: string;
+  masked_key_id?: string;
   monthly_cost_limit?: number;
   owner_email?: string;
-  enabled: boolean;
-  redact_pii?: PiiRedactSetting;
-  rate_limit_rpm?: number;
-  rate_limit_tpm?: number;
-  rate_limit_rpd?: number;
-  rate_limit_tpd?: number;
-  tags?: Record<string, string>;
-  created_at: string;
-  updated_at: string;
-  expires_at?: string | null;
+  provider: Provider;
   provisioned?: boolean;
   proxy_base?: string;
-  base_url?: string;
-  first_request_at?: string | null;
-  masked_key_id?: string;
+  rate_limit_rpd?: number;
+  rate_limit_rpm?: number;
+  rate_limit_tpd?: number;
+  rate_limit_tpm?: number;
+  redact_pii?: PiiRedactSetting;
+  tags?: Record<string, string>;
+  updated_at: string;
 }
 
 export interface ProvisioningProviderStatus {
   auto_provision: boolean;
-  pool_available?: number;
   default_tier?: string;
+  pool_available?: number;
   tiers?: string[];
 }
 
@@ -108,43 +108,43 @@ export interface ProvisioningStatus {
 }
 
 export interface CreateAPIKeyRequest {
-  provider: Provider;
   actual_key?: string;
   auto_provision?: boolean;
-  personal?: boolean;
-  description?: string;
   daily_cost_limit?: number;
-  monthly_cost_limit?: number;
+  description?: string;
   enabled?: boolean;
-  redact_pii?: PiiRedactSetting;
-  rate_limit_rpm?: number;
-  rate_limit_tpm?: number;
+  monthly_cost_limit?: number;
+  personal?: boolean;
+  provider: Provider;
   rate_limit_rpd?: number;
+  rate_limit_rpm?: number;
   rate_limit_tpd?: number;
+  rate_limit_tpm?: number;
+  redact_pii?: PiiRedactSetting;
   tags?: Record<string, string>;
 }
 
 export interface UpdateAPIKeyRequest {
-  enabled?: boolean;
-  description?: string;
   daily_cost_limit?: number;
+  description?: string;
+  enabled?: boolean;
   monthly_cost_limit?: number;
-  redact_pii?: PiiRedactSetting;
-  rate_limit_rpm?: number;
-  rate_limit_tpm?: number;
   rate_limit_rpd?: number;
+  rate_limit_rpm?: number;
   rate_limit_tpd?: number;
+  rate_limit_tpm?: number;
+  redact_pii?: PiiRedactSetting;
   tags?: Record<string, string>;
 }
 
 export interface FeatureToggle {
-  enabled: boolean;
-  backend?: string;
-  table_name?: string;
-  region?: string;
-  mode?: string;
   analyzer_url?: string;
+  backend?: string;
+  enabled: boolean;
   fail_mode?: string;
+  mode?: string;
+  region?: string;
+  table_name?: string;
 }
 
 export interface ConfigSummary {
@@ -162,11 +162,11 @@ export interface ConfigSummary {
 export interface DailyHistoryRow {
   day: string;
   [key: string]:
-  | string
-  | number
-  | boolean
-  | undefined
-  | Record<string, unknown>;
+    | string
+    | number
+    | boolean
+    | undefined
+    | Record<string, unknown>;
 }
 
 export interface HourlyHistoryRow {
@@ -182,10 +182,9 @@ export interface StatsWithDailyHistory {
 }
 
 export interface CircuitBreakerProviderHealth {
-  state?: string;
-  failures?: number;
   cooldown_until?: number;
   error?: string;
+  failures?: number;
   rollup?: {
     enabled: boolean;
     open: boolean;
@@ -194,16 +193,10 @@ export interface CircuitBreakerProviderHealth {
     window_seconds: number;
     open_keys?: string[];
   };
+  state?: string;
 }
 
 export interface HealthResponse {
-  status: string;
-  timestamp: number;
-  providers?: Record<string, unknown>;
-  features?: {
-    cost_tracking?: boolean;
-    circuit_breaker?: boolean;
-  };
   circuit_breaker?: {
     enabled: boolean;
     mode: string;
@@ -217,43 +210,50 @@ export interface HealthResponse {
     hourly_history?: HourlyHistoryRow[];
     hourly_history_available?: boolean;
   };
+  features?: {
+    cost_tracking?: boolean;
+    circuit_breaker?: boolean;
+  };
+  providers?: Record<string, unknown>;
+  status: string;
+  timestamp: number;
 }
 
 export interface CircuitActivityEvent {
-  time: number;
-  provider: string;
+  failure_kind?: string;
   key?: string;
   kind: string;
   new_state?: string;
-  status_code?: number;
-  failure_kind?: string;
-  upstream_error?: string;
+  provider: string;
   reason?: string;
+  status_code?: number;
+  time: number;
+  upstream_error?: string;
 }
 
 export interface CircuitActivityResponse {
   available?: boolean;
   backend?: string;
-  day?: string;
-  started_at?: number;
-  checks_total?: number;
   blocked_open?: number;
-  probes_started?: number;
-  probes_succeeded?: number;
-  probes_failed?: number;
-  circuits_opened?: number;
-  by_provider?: Record<string, number>;
   by_key?: Record<string, number>;
-  recent_events?: CircuitActivityEvent[];
+  by_provider?: Record<string, number>;
+  checks_total?: number;
+  circuits_opened?: number;
   daily_history?: DailyHistoryRow[];
   daily_history_available?: boolean;
+  day?: string;
+  probes_failed?: number;
+  probes_started?: number;
+  probes_succeeded?: number;
+  recent_events?: CircuitActivityEvent[];
+  started_at?: number;
 }
 
 export interface RateLimitConfig {
-  RequestsPerMinute?: number;
-  TokensPerMinute?: number;
   RequestsPerDay?: number;
+  RequestsPerMinute?: number;
   TokensPerDay?: number;
+  TokensPerMinute?: number;
 }
 
 export interface RateLimitCounter {
@@ -262,218 +262,218 @@ export interface RateLimitCounter {
 }
 
 export interface RateLimitWindow {
-  window_start?: string;
   counters?: Record<string, RateLimitCounter>;
+  window_start?: string;
 }
 
 export interface RateLimitOverrides {
   PerKey?: Record<string, RateLimitConfig> | null;
-  PerUser?: Record<string, RateLimitConfig> | null;
   PerModel?: Record<string, RateLimitConfig> | null;
+  PerUser?: Record<string, RateLimitConfig> | null;
 }
 
 export interface RateLimitSnapshot {
-  minute?: RateLimitWindow;
   day?: RateLimitWindow;
+  minute?: RateLimitWindow;
 }
 
 export interface RateLimitsResponse {
-  enabled: boolean;
   backend?: string;
+  enabled: boolean;
   limits?: RateLimitConfig;
   overrides?: RateLimitOverrides;
   snapshot?: RateLimitSnapshot;
 }
 
 export interface CostTransport {
-  type: string;
-  path?: string;
-  table_name?: string;
-  region?: string;
   host?: string;
-  port?: string;
   namespace?: string;
+  path?: string;
+  port?: string;
+  region?: string;
+  table_name?: string;
+  type: string;
 }
 
 export interface CostKeySpend {
-  key_id?: string;
-  spend_usd: number;
   input_spend_usd?: number;
-  output_spend_usd?: number;
-  requests: number;
   input_tokens: number;
+  key_id?: string;
+  output_spend_usd?: number;
   output_tokens: number;
+  requests: number;
+  spend_usd: number;
 }
 
 export interface CostScopeSpend {
-  spend_usd: number;
   input_spend_usd?: number;
-  output_spend_usd?: number;
-  requests: number;
   input_tokens: number;
+  output_spend_usd?: number;
   output_tokens: number;
+  requests: number;
+  spend_usd: number;
 }
 
 export interface CostProviderSpend {
-  name: string;
-  spend_usd: number;
   input_spend_usd?: number;
-  output_spend_usd?: number;
-  requests: number;
   input_tokens: number;
+  name: string;
+  output_spend_usd?: number;
   output_tokens: number;
+  requests: number;
+  spend_usd: number;
 }
 
 export interface CostRecentEvent {
-  time: number;
-  provider: string;
-  key_id?: string;
-  user_id?: string;
-  spend_usd: number;
   input_spend_usd?: number;
-  output_spend_usd?: number;
   input_tokens: number;
-  output_tokens: number;
+  key_id?: string;
   model?: string;
+  output_spend_usd?: number;
+  output_tokens: number;
+  provider: string;
+  spend_usd: number;
+  time: number;
+  user_id?: string;
 }
 
 export interface CostStats extends StatsWithDailyHistory {
   available: boolean;
-  day?: string;
-  started_at?: number;
-  spend_today_usd?: number;
-  input_spend_today_usd?: number;
-  output_spend_today_usd?: number;
-  requests_today?: number;
-  input_tokens_today?: number;
-  output_tokens_today?: number;
   by_key?: CostKeySpend[];
-  by_user?: Record<string, CostScopeSpend>;
   by_provider?: CostProviderSpend[];
+  by_user?: Record<string, CostScopeSpend>;
+  day?: string;
+  input_spend_today_usd?: number;
+  input_tokens_today?: number;
+  output_spend_today_usd?: number;
+  output_tokens_today?: number;
   recent?: CostRecentEvent[];
+  requests_today?: number;
+  spend_today_usd?: number;
+  started_at?: number;
 }
 
 export interface CostResponse {
-  enabled: boolean;
   async?: boolean;
-  workers?: number;
-  queue_size?: number;
+  enabled: boolean;
   flush_interval?: number;
+  queue_size?: number;
+  stats?: CostStats;
   transport_count?: number;
   transports?: CostTransport[];
-  stats?: CostStats;
+  workers?: number;
 }
 
 export interface PIINameCount {
-  name: string;
   count: number;
+  name: string;
 }
 
 export interface PIIRecentEvent {
-  time: number;
-  provider: string;
-  key_id?: string;
-  entity_counts?: Record<string, number> | null;
-  entity_total: number;
   body_bytes: number;
   duration_ms: number;
+  entity_counts?: Record<string, number> | null;
+  entity_total: number;
+  key_id?: string;
   outcome: "ok" | "fail_open" | "fail_closed" | "oversize";
   pipeline?: string;
+  provider: string;
+  time: number;
 }
 
 export interface IDGateRecentEvent {
-  time: number;
-  provider: string;
-  key_id?: string;
-  outcome: "clear" | "blocked" | "fail_open" | "fail_closed";
+  duration_ms: number;
   entity_type?: string;
-  score?: number;
   image_count?: number;
   image_index?: number;
-  stage?: string;
-  duration_ms: number;
+  key_id?: string;
+  outcome: "clear" | "blocked" | "fail_open" | "fail_closed";
   pipeline: string;
+  provider: string;
+  score?: number;
+  stage?: string;
+  time: number;
 }
 
 export interface IDGateStats extends StatsWithDailyHistory {
   available: boolean;
-  day?: string;
-  started_at?: number;
-  requests_with_images?: number;
-  requests_blocked?: number;
-  requests_cleared?: number;
-  fail_open?: number;
-  fail_closed?: number;
-  images_scanned?: number;
   by_entity?: PIINameCount[];
   by_provider?: PIINameCount[];
-  top_keys?: PIINameCount[];
+  day?: string;
+  fail_closed?: number;
+  fail_open?: number;
+  images_scanned?: number;
   recent?: IDGateRecentEvent[];
   recent_backend?: string;
+  requests_blocked?: number;
+  requests_cleared?: number;
+  requests_with_images?: number;
+  started_at?: number;
+  top_keys?: PIINameCount[];
 }
 
 export interface PIIStats extends StatsWithDailyHistory {
   available: boolean;
-  started_at?: number;
-  requests_scanned?: number;
-  requests_with_pii?: number;
-  entities_total?: number;
-  detection_rate?: number;
-  fail_open?: number;
-  fail_closed?: number;
-  oversize?: number;
   by_entity?: PIINameCount[];
   by_provider?: PIINameCount[];
-  top_keys?: PIINameCount[];
+  detection_rate?: number;
+  entities_total?: number;
+  fail_closed?: number;
+  fail_open?: number;
+  oversize?: number;
   recent?: PIIRecentEvent[];
   recent_backend?: string;
+  requests_scanned?: number;
+  requests_with_pii?: number;
+  started_at?: number;
+  top_keys?: PIINameCount[];
 }
 
 export interface PIIResponse {
-  enabled: boolean;
   allow_per_key_override: boolean;
+  enabled: boolean;
   fail_mode: string;
-  wire_placeholders: boolean;
   id_gate_enabled: boolean;
   id_gate_fail_mode: string;
-  stats: PIIStats;
   id_gate_stats: IDGateStats;
+  stats: PIIStats;
+  wire_placeholders: boolean;
 }
 
 export interface ModelStatusNameCount {
-  name: string;
   count: number;
+  name: string;
 }
 
 export interface ModelStatusRegistryEntry {
-  provider: string;
-  model: string;
-  retired_date?: string;
-  replacement?: string;
   aliases?: string[];
+  model: string;
+  provider: string;
+  replacement?: string;
+  retired_date?: string;
 }
 
 export interface ModelStatusRegistry {
-  retired: ModelStatusRegistryEntry[];
   deprecated: ModelStatusRegistryEntry[];
+  retired: ModelStatusRegistryEntry[];
 }
 
 export interface ModelStatusStats extends StatsWithDailyHistory {
   available: boolean;
   backend?: string;
-  day?: string;
-  started_at?: number;
-  retired_total?: number;
-  deprecated_total?: number;
-  unknown_total?: number;
-  by_retired?: ModelStatusNameCount[];
   by_deprecated?: ModelStatusNameCount[];
+  by_retired?: ModelStatusNameCount[];
   by_unknown?: ModelStatusNameCount[];
+  day?: string;
+  deprecated_total?: number;
+  retired_total?: number;
+  started_at?: number;
+  unknown_total?: number;
 }
 
 export interface ModelStatusResponse {
-  stats: ModelStatusStats;
   registry: ModelStatusRegistry;
+  stats: ModelStatusStats;
 }
 
 export interface UsageScopeCounter {
@@ -483,13 +483,13 @@ export interface UsageScopeCounter {
 
 export interface UsageStats extends StatsWithDailyHistory {
   available: boolean;
+  counters?: Record<string, UsageScopeCounter>;
   day?: string;
-  started_at?: number;
   requests_today?: number;
+  started_at?: number;
   tokens_today?: number;
   top_models?: PIINameCount[];
   top_providers?: PIINameCount[];
-  counters?: Record<string, UsageScopeCounter>;
 }
 
 export interface UsageResponse {
@@ -499,24 +499,24 @@ export interface UsageResponse {
 }
 
 export interface ShareCreateResponse {
-  id: string;
-  url: string;
-  provider: Provider;
   created_at: string;
   expires_at?: string;
+  id: string;
+  provider: Provider;
+  url: string;
 }
 
 export interface ShareInfo {
-  id: string;
-  provider: Provider;
-  key: string;
-  description?: string;
-  enabled: boolean;
-  proxy_base: string;
   base_url: string;
   created_at: string;
   created_by?: string;
+  description?: string;
+  enabled: boolean;
   expires_at?: string;
+  id: string;
+  key: string;
+  provider: Provider;
+  proxy_base: string;
 }
 
 export interface APIError {
@@ -526,30 +526,30 @@ export interface APIError {
 export type KeyStatsSource = "memory" | "redis" | "redislive";
 
 export interface KeyCostStats {
+  input_spend_usd: number;
+  input_tokens: number;
+  output_spend_usd: number;
+  output_tokens: number;
+  requests: number;
   source: KeyStatsSource;
   spend_usd: number;
-  input_spend_usd: number;
-  output_spend_usd: number;
-  requests: number;
-  input_tokens: number;
-  output_tokens: number;
 }
 
 export interface KeyCostMonthStats {
   month: string;
-  spend_usd: number;
   source: KeyStatsSource;
+  spend_usd: number;
 }
 
 export interface KeyRateUsageStats {
-  window: "day" | "minute";
   requests: number;
   tokens: number;
+  window: "day" | "minute";
 }
 
 export interface KeyPIIStats {
-  source: KeyStatsSource;
   detections: number;
+  source: KeyStatsSource;
 }
 
 export interface KeyDayPoint {
@@ -558,68 +558,68 @@ export interface KeyDayPoint {
 }
 
 export interface KeyCostRecentEvent {
-  time: number;
-  provider: string;
-  key_id?: string;
-  spend_usd: number;
   input_spend_usd?: number;
-  output_spend_usd?: number;
   input_tokens: number;
-  output_tokens: number;
+  key_id?: string;
   model?: string;
+  output_spend_usd?: number;
+  output_tokens: number;
+  provider: string;
+  spend_usd: number;
+  time: number;
 }
 
 export interface KeyPIIRecentEvent {
-  time: number;
-  provider: string;
-  key_id?: string;
+  duration_ms: number;
   entity_counts: Record<string, number>;
   entity_total: number;
-  duration_ms: number;
+  key_id?: string;
   outcome: "ok" | "fail_open" | "fail_closed" | "oversize";
+  provider: string;
+  time: number;
 }
 
 export interface KeyStatsResponse {
-  masked_key_id: string;
-  day: string;
-  rollup_available: boolean;
-  rollup_backend?: string;
-  cost_today: KeyCostStats;
-  cost_month: KeyCostMonthStats;
-  pii_today: KeyPIIStats;
-  rate_usage?: KeyRateUsageStats[];
-  rate_backend?: string;
   cost_history: KeyDayPoint[];
+  cost_month: KeyCostMonthStats;
+  cost_today: KeyCostStats;
+  day: string;
+  masked_key_id: string;
   pii_history: KeyDayPoint[];
+  pii_today: KeyPIIStats;
+  rate_backend?: string;
+  rate_usage?: KeyRateUsageStats[];
   recent_cost: KeyCostRecentEvent[];
   recent_pii: KeyPIIRecentEvent[];
+  rollup_available: boolean;
+  rollup_backend?: string;
 }
 
 export interface BYOBanRecord {
-  provider: Provider;
-  masked_id: string;
-  hash: string;
   banned_by?: string;
-  reason?: string;
   created_at: string;
+  hash: string;
+  masked_id: string;
+  provider: Provider;
+  reason?: string;
 }
 
 export interface BYOKeyRecord {
-  provider: Provider;
-  masked_id: string;
-  hash: string;
   banned: boolean;
-  banned_by?: string;
-  reason?: string;
   banned_at?: string;
-  pii_scans: number;
+  banned_by?: string;
   cost_requests: number;
-  spend_usd: number;
+  hash: string;
+  masked_id: string;
+  pii_scans: number;
+  provider: Provider;
+  reason?: string;
   sources: string[];
+  spend_usd: number;
 }
 
 export interface CreateBYOBanRequest {
-  provider: Provider;
   masked_id: string;
+  provider: Provider;
   reason?: string;
 }

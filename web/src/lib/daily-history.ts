@@ -15,9 +15,11 @@ export const HOURLY_HISTORY_FALLBACK_SUBTITLE =
  */
 export function hourlySeries(
   rows: HourlyHistoryRow[] | undefined,
-  field: string,
+  field: string
 ): { labels: string[]; values: number[]; available: boolean } {
-  if (!rows?.length) return { labels: [], values: [], available: false };
+  if (!rows?.length) {
+    return { labels: [], values: [], available: false };
+  }
   const sorted = [...rows].sort((a, b) => (a.hour ?? 0) - (b.hour ?? 0));
   return {
     labels: sorted.map((r) => `${String(r.hour ?? 0).padStart(2, "0")}:00`),
@@ -38,8 +40,12 @@ export const RANGE_OPTIONS: { key: RangeKey; label: string }[] = [
 ];
 
 export function rangeDays(range: RangeKey): number {
-  if (range === "today") return 1;
-  if (range === "7d") return 7;
+  if (range === "today") {
+    return 1;
+  }
+  if (range === "7d") {
+    return 7;
+  }
   return 30;
 }
 
@@ -48,7 +54,9 @@ function todayUTC(): string {
 }
 
 function asNum(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
   if (typeof value === "string") {
     const n = Number(value);
     return Number.isFinite(n) ? n : 0;
@@ -71,22 +79,30 @@ function sortRows(rows: DailyHistoryRow[]): DailyHistoryRow[] {
 }
 
 /** Most-recent (today) row, if present. */
-export function latestRow(rows: DailyHistoryRow[] | undefined): DailyHistoryRow | undefined {
-  if (!rows?.length) return undefined;
+export function latestRow(
+  rows: DailyHistoryRow[] | undefined
+): DailyHistoryRow | undefined {
+  if (!rows?.length) {
+    return;
+  }
   return sortRows(rows)[rows.length - 1];
 }
 
 /** The row for the current UTC day, if Redis has it. */
-export function todayRow(rows: DailyHistoryRow[] | undefined): DailyHistoryRow | undefined {
+export function todayRow(
+  rows: DailyHistoryRow[] | undefined
+): DailyHistoryRow | undefined {
   return rows?.find((r) => r.day === todayUTC());
 }
 
 /** Last N days of rows for the selected range (oldest-first). */
 export function sliceRange(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): DailyHistoryRow[] {
-  if (!rows?.length) return [];
+  if (!rows?.length) {
+    return [];
+  }
   const sorted = sortRows(rows);
   if (range === "today") {
     return sorted.filter((r) => r.day === todayUTC());
@@ -98,10 +114,12 @@ export function sliceRange(
 export function scalarSeries(
   rows: DailyHistoryRow[] | undefined,
   field: string,
-  range: RangeKey = "30d",
+  range: RangeKey = "30d"
 ): { labels: string[]; values: number[]; available: boolean } {
   const slice = sliceRange(rows, range === "today" ? "30d" : range);
-  if (!slice.length) return { labels: [], values: [], available: false };
+  if (!slice.length) {
+    return { labels: [], values: [], available: false };
+  }
   return {
     labels: slice.map((r) => r.day.slice(5)),
     values: slice.map((r) => asNum(r[field])),
@@ -112,7 +130,7 @@ export function scalarSeries(
 /** Backwards-compatible scalar chart over full history. */
 export function dailyHistoryChart(
   rows: DailyHistoryRow[] | undefined,
-  field: string,
+  field: string
 ): { labels: string[]; values: number[]; available: boolean } {
   return scalarSeries(rows, field, "30d");
 }
@@ -134,7 +152,7 @@ export function pickToday(
   memoryValue: number | undefined,
   rows: DailyHistoryRow[] | undefined,
   field: string,
-  redisAvailable = false,
+  redisAvailable = false
 ): { value: number; source: ValueSource } {
   const mem = memoryValue ?? 0;
   const row = todayRow(rows);
@@ -160,24 +178,26 @@ export function pickToday(
 // --- Cost breakdowns (arrays of objects) ------------------------------------
 
 export interface CostKeyAgg {
-  key_id: string;
-  spend_usd: number;
   input_spend_usd: number;
-  output_spend_usd: number;
-  requests: number;
   input_tokens: number;
+  key_id: string;
+  output_spend_usd: number;
   output_tokens: number;
+  requests: number;
+  spend_usd: number;
 }
 
 export function aggCostByKey(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): CostKeyAgg[] {
   const acc = new Map<string, CostKeyAgg>();
   for (const row of sliceRange(rows, range)) {
     for (const raw of asArray(row.by_key)) {
       const id = String(raw.key_id ?? "");
-      if (!id) continue;
+      if (!id) {
+        continue;
+      }
       const cur = acc.get(id) ?? {
         key_id: id,
         spend_usd: 0,
@@ -200,20 +220,20 @@ export function aggCostByKey(
 }
 
 export interface CostUserAgg {
-  scope: string;
-  label: string;
-  spend_usd: number;
   input_spend_usd: number;
-  output_spend_usd: number;
-  requests: number;
   input_tokens: number;
+  label: string;
+  output_spend_usd: number;
   output_tokens: number;
+  requests: number;
+  scope: string;
+  spend_usd: number;
 }
 
 export function aggCostByUser(
   rows: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  labelForScope: (scope: string) => string,
+  labelForScope: (scope: string) => string
 ): CostUserAgg[] {
   const acc = new Map<string, CostUserAgg>();
   for (const row of sliceRange(rows, range)) {
@@ -244,19 +264,21 @@ export function aggCostByUser(
 
 export interface ProviderSpendAgg {
   name: string;
-  spend_usd: number;
   requests: number;
+  spend_usd: number;
 }
 
 export function aggCostByProvider(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): ProviderSpendAgg[] {
   const acc = new Map<string, ProviderSpendAgg>();
   for (const row of sliceRange(rows, range)) {
     for (const raw of asArray(row.by_provider)) {
       const name = String(raw.name ?? "");
-      if (!name) continue;
+      if (!name) {
+        continue;
+      }
       const cur = acc.get(name) ?? { name, spend_usd: 0, requests: 0 };
       cur.spend_usd += asNum(raw.spend_usd);
       cur.requests += asNum(raw.requests);
@@ -269,15 +291,15 @@ export function aggCostByProvider(
 // --- Usage breakdowns (scope maps) ------------------------------------------
 
 export interface ScopeAgg {
-  scope: string;
   requests: number;
+  scope: string;
   tokens: number;
 }
 
 export function aggScopeMap(
   rows: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  field: string,
+  field: string
 ): ScopeAgg[] {
   const acc = new Map<string, ScopeAgg>();
   for (const row of sliceRange(rows, range)) {
@@ -296,20 +318,22 @@ export function aggScopeMap(
 // --- name/count arrays (PII) ------------------------------------------------
 
 export interface NameCount {
-  name: string;
   count: number;
+  name: string;
 }
 
 export function aggNameCount(
   rows: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  field: string,
+  field: string
 ): NameCount[] {
   const acc = new Map<string, number>();
   for (const row of sliceRange(rows, range)) {
     for (const raw of asArray(row[field])) {
       const name = String(raw.name ?? "");
-      if (!name) continue;
+      if (!name) {
+        continue;
+      }
       acc.set(name, (acc.get(name) ?? 0) + asNum(raw.count));
     }
   }
@@ -322,19 +346,24 @@ export function aggNameCount(
 export function sumScalarField(
   rows: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  field: string,
+  field: string
 ): number {
-  return sliceRange(rows, range).reduce((sum, row) => sum + asNum(row[field]), 0);
+  return sliceRange(rows, range).reduce(
+    (sum, row) => sum + asNum(row[field]),
+    0
+  );
 }
 
 /** Peak numeric field across each UTC day in the range (for rolling-window gauges). */
 export function maxScalarField(
   rows: DailyHistoryRow[] | undefined,
   range: RangeKey,
-  field: string,
+  field: string
 ): number {
   const slice = sliceRange(rows, range);
-  if (!slice.length) return 0;
+  if (!slice.length) {
+    return 0;
+  }
   return Math.max(0, ...slice.map((row) => asNum(row[field])));
 }
 
@@ -350,12 +379,12 @@ export function rangeStartUnix(range: RangeKey): number {
 // --- Circuit activity (daily counter totals) ---------------------------------
 
 export interface CircuitActivityAgg {
-  checks_total: number;
   blocked_open: number;
+  checks_total: number;
+  circuits_opened: number;
+  probes_failed: number;
   probes_started: number;
   probes_succeeded: number;
-  probes_failed: number;
-  circuits_opened: number;
 }
 
 const CIRCUIT_ACTIVITY_FIELDS = [
@@ -369,7 +398,7 @@ const CIRCUIT_ACTIVITY_FIELDS = [
 
 export function aggCircuitActivity(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): CircuitActivityAgg {
   const out: CircuitActivityAgg = {
     checks_total: 0,
@@ -390,7 +419,7 @@ export function aggCircuitActivity(
 /** Sum blocked-open fast-fails per breaker key across UTC days in range. */
 export function aggCircuitBlockedByKey(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): NameCount[] {
   const acc = new Map<string, number>();
   for (const row of sliceRange(rows, range)) {
@@ -407,7 +436,7 @@ export function aggCircuitBlockedByKey(
 
 export function aggCircuitProviders(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
+  range: RangeKey
 ): NameCount[] {
   // Circuit failures are a rolling-window gauge, not a per-day total, so we
   // take the PEAK observed per provider across the range rather than summing
@@ -416,7 +445,10 @@ export function aggCircuitProviders(
   for (const row of sliceRange(rows, range)) {
     const map = asRecord(row.providers);
     for (const [name, raw] of Object.entries(map)) {
-      acc.set(name, Math.max(acc.get(name) ?? 0, asNum(asRecord(raw).failures)));
+      acc.set(
+        name,
+        Math.max(acc.get(name) ?? 0, asNum(asRecord(raw).failures))
+      );
     }
   }
   return [...acc.entries()]
@@ -427,19 +459,29 @@ export function aggCircuitProviders(
 /** Stacked per-provider failures over time (one dataset per provider). */
 export function circuitProviderSeries(
   rows: DailyHistoryRow[] | undefined,
-  range: RangeKey,
-): { labels: string[]; providers: string[]; valuesByProvider: Record<string, number[]> } {
+  range: RangeKey
+): {
+  labels: string[];
+  providers: string[];
+  valuesByProvider: Record<string, number[]>;
+} {
   const slice = sliceRange(rows, range === "today" ? "7d" : range);
   const providerSet = new Set<string>();
   for (const row of slice) {
-    for (const name of Object.keys(asRecord(row.providers))) providerSet.add(name);
+    for (const name of Object.keys(asRecord(row.providers))) {
+      providerSet.add(name);
+    }
   }
   const providers = [...providerSet];
   const valuesByProvider: Record<string, number[]> = {};
   for (const name of providers) {
     valuesByProvider[name] = slice.map((row) =>
-      asNum(asRecord(asRecord(row.providers)[name]).failures),
+      asNum(asRecord(asRecord(row.providers)[name]).failures)
     );
   }
-  return { labels: slice.map((r) => r.day.slice(5)), providers, valuesByProvider };
+  return {
+    labels: slice.map((r) => r.day.slice(5)),
+    providers,
+    valuesByProvider,
+  };
 }

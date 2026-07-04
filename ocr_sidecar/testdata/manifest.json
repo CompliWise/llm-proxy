@@ -7,18 +7,14 @@
       "path": "testdata/passport_us_block.png",
       "description": "Synthetic US passport card; OCR should yield a 9-digit passport number.",
       "expect_block": true,
-      "expected_entities": [
-        "US_PASSPORT"
-      ]
+      "expected_entities": ["US_PASSPORT"]
     },
     {
       "file": "driver_license_us_block.png",
       "path": "testdata/driver_license_us_block.png",
       "description": "Synthetic California-style driver license text.",
       "expect_block": true,
-      "expected_entities": [
-        "US_DRIVER_LICENSE"
-      ]
+      "expected_entities": ["US_DRIVER_LICENSE"]
     },
     {
       "file": "receipt_clear.png",

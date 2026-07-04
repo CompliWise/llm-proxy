@@ -1,11 +1,10 @@
+import type { ChartOptions } from "chart.js";
 import { useMemo } from "react";
 import { Bar, Doughnut, Line } from "react-chartjs-2";
-import type { ChartOptions } from "chart.js";
-
-import { DataSourceBadge, type DataSource } from "../ui/data-source";
-import { chartPalette, ensureChartsRegistered } from "./chart-setup";
 import { liveTrendCaption } from "../../hooks/use-history";
 import { useTheme } from "../../lib/theme";
+import { type DataSource, DataSourceBadge } from "../ui/data-source";
+import { chartPalette, ensureChartsRegistered } from "./chart-setup";
 
 ensureChartsRegistered();
 
@@ -45,7 +44,12 @@ export function TrendChart({
 
   const data = useMemo(
     () => ({
-      labels: points.map((p) => new Date(p.t).toLocaleTimeString([], { minute: "2-digit", second: "2-digit" })),
+      labels: points.map((p) =>
+        new Date(p.t).toLocaleTimeString([], {
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      ),
       datasets: [
         {
           label,
@@ -60,7 +64,7 @@ export function TrendChart({
         },
       ],
     }),
-    [points, label, stroke, theme],
+    [points, label, stroke]
   );
 
   const options: ChartOptions<"line"> = useMemo(
@@ -71,7 +75,7 @@ export function TrendChart({
       scales: baseScales(),
       interaction: { mode: "index", intersect: false },
     }),
-    [theme],
+    []
   );
 
   if (points.length === 0) {
@@ -81,9 +85,9 @@ export function TrendChart({
   return (
     <div className="space-y-2">
       <div style={{ height }}>
-        <Line key={theme} data={data} options={options} />
+        <Line data={data} key={theme} options={options} />
       </div>
-      <p className="text-xs text-base-content/50">{liveTrendCaption(points)}</p>
+      <p className="text-base-content/50 text-xs">{liveTrendCaption(points)}</p>
     </div>
   );
 }
@@ -117,7 +121,7 @@ export function BarChart({
         },
       ],
     }),
-    [labels, values, label, colors, theme],
+    [labels, values, label, colors]
   );
 
   const options: ChartOptions<"bar"> = useMemo(
@@ -128,7 +132,7 @@ export function BarChart({
       plugins: { legend: { display: false } },
       scales: baseScales(),
     }),
-    [horizontal, theme],
+    [horizontal]
   );
 
   if (labels.length === 0) {
@@ -137,7 +141,7 @@ export function BarChart({
 
   return (
     <div style={{ height }}>
-      <Bar key={theme} data={data} options={options} />
+      <Bar data={data} key={theme} options={options} />
     </div>
   );
 }
@@ -167,7 +171,7 @@ export function GroupedBarChart({
         maxBarThickness: 48,
       })),
     }),
-    [labels, series, theme],
+    [labels, series]
   );
 
   const options: ChartOptions<"bar"> = useMemo(() => {
@@ -183,12 +187,17 @@ export function GroupedBarChart({
       plugins: {
         legend: {
           position: "bottom",
-          labels: { boxWidth: 12, usePointStyle: true, padding: 12, color: chartPalette.tick() },
+          labels: {
+            boxWidth: 12,
+            usePointStyle: true,
+            padding: 12,
+            color: chartPalette.tick(),
+          },
         },
       },
       scales,
     };
-  }, [horizontal, stacked, theme]);
+  }, [horizontal, stacked]);
 
   if (labels.length === 0) {
     return <ChartEmpty height={height} label="No data" />;
@@ -196,7 +205,7 @@ export function GroupedBarChart({
 
   return (
     <div style={{ height }}>
-      <Bar key={theme} data={data} options={options} />
+      <Bar data={data} key={theme} options={options} />
     </div>
   );
 }
@@ -229,7 +238,7 @@ export function DonutChart({
         },
       ],
     }),
-    [labels, values, colors, theme],
+    [labels, values, colors]
   );
 
   const options: ChartOptions<"doughnut"> = useMemo(
@@ -241,7 +250,7 @@ export function DonutChart({
         legend: { display: false },
       },
     }),
-    [theme],
+    []
   );
 
   const total = values.reduce((a, b) => a + b, 0);
@@ -252,19 +261,26 @@ export function DonutChart({
   return (
     <div className="flex flex-col">
       <div className="relative" style={{ height }}>
-        <Doughnut key={theme} data={data} options={options} />
+        <Doughnut data={data} key={theme} options={options} />
         {centerValue ? (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-2xl font-semibold leading-tight">{centerValue}</span>
+            <span className="font-semibold text-2xl leading-tight">
+              {centerValue}
+            </span>
             {centerLabel ? (
-              <span className="text-xs uppercase tracking-wide text-base-content/50">{centerLabel}</span>
+              <span className="text-base-content/50 text-xs uppercase tracking-wide">
+                {centerLabel}
+              </span>
             ) : null}
           </div>
         ) : null}
       </div>
       <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-2">
         {labels.map((label, i) => (
-          <li key={`${label}-${i}`} className="flex items-center gap-1.5 text-xs text-base-content/70">
+          <li
+            className="flex items-center gap-1.5 text-base-content/70 text-xs"
+            key={`${label}-${i}`}
+          >
             <span
               className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: colors[i % colors.length] }}
@@ -280,7 +296,7 @@ export function DonutChart({
 function ChartEmpty({ height, label }: { height: number; label: string }) {
   return (
     <div
-      className="flex items-center justify-center rounded-xl border border-dashed border-base-300/70 text-sm text-base-content/50"
+      className="flex items-center justify-center rounded-xl border border-base-300/70 border-dashed text-base-content/50 text-sm"
       style={{ height }}
     >
       {label}
@@ -309,7 +325,9 @@ export function ChartCard({
             <h3 className="font-semibold">{title}</h3>
             {source ? <DataSourceBadge source={source} /> : null}
           </div>
-          {subtitle ? <p className="mt-1 text-sm text-base-content/60">{subtitle}</p> : null}
+          {subtitle ? (
+            <p className="mt-1 text-base-content/60 text-sm">{subtitle}</p>
+          ) : null}
         </div>
         {actions}
       </div>

@@ -1,27 +1,30 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import KeyLink from "../ui/key-link";
-import DataTable from "../ui/data-table";
-import { ProviderBadge } from "../ui/page-header";
-import { topDisplayRows } from "../../lib/group-rows";
-import { formatKeySpendCap, formatUsd } from "../../lib/format";
+import { useMemo } from "react";
 import { useCollapsedRows } from "../../hooks/use-collapsed-rows";
+import { formatKeySpendCap, formatUsd } from "../../lib/format";
+import { topDisplayRows } from "../../lib/group-rows";
 import type { APIKey, CostRecentEvent, CostTransport } from "../../types";
 import { chartPalette } from "../charts/chart-setup";
+import DataTable from "../ui/data-table";
+import KeyLink from "../ui/key-link";
+import { ProviderBadge } from "../ui/page-header";
 
 interface LimitSpendRow {
   id: string;
+  key: APIKey;
   label: string;
-  spendUsd: number;
   limitUsd: number;
   requests: number;
-  key: APIKey;
+  spendUsd: number;
 }
 
 type LimitSpendDisplayRow = LimitSpendRow & { isOthers?: boolean };
 
-function limitSpendDisplayRows(rows: LimitSpendRow[], topN: number, collapse: boolean): LimitSpendDisplayRow[] {
+function limitSpendDisplayRows(
+  rows: LimitSpendRow[],
+  topN: number,
+  collapse: boolean
+): LimitSpendDisplayRow[] {
   return topDisplayRows(
     rows,
     (row) => row.spendUsd,
@@ -35,7 +38,14 @@ function limitSpendDisplayRows(rows: LimitSpendRow[], topN: number, collapse: bo
           requests: acc.requests + row.requests,
           key: row.key,
         }),
-        { id: "", label: "", spendUsd: 0, limitUsd: 0, requests: 0, key: rest[0]?.key ?? rows[0]?.key },
+        {
+          id: "",
+          label: "",
+          spendUsd: 0,
+          limitUsd: 0,
+          requests: 0,
+          key: rest[0]?.key ?? rows[0]?.key,
+        }
       ),
     (aggregated, count) => ({
       ...aggregated,
@@ -43,15 +53,21 @@ function limitSpendDisplayRows(rows: LimitSpendRow[], topN: number, collapse: bo
       label: `(and ${count} other${count === 1 ? "" : "s"})`,
     }),
     topN,
-    collapse,
+    collapse
   );
 }
 
-export function LimitSpendTable({ rows, keys }: { rows: LimitSpendRow[]; keys: APIKey[] }) {
+export function LimitSpendTable({
+  rows,
+  keys,
+}: {
+  rows: LimitSpendRow[];
+  keys: APIKey[];
+}) {
   const { displayData, onSearchActiveChange, footer } = useCollapsedRows(
     rows,
     limitSpendDisplayRows,
-    "keys",
+    "keys"
   );
 
   const columns = useMemo<ColumnDef<LimitSpendDisplayRow, unknown>[]>(
@@ -63,7 +79,9 @@ export function LimitSpendTable({ rows, keys }: { rows: LimitSpendRow[]; keys: A
         cell: ({ row }) => {
           const data = row.original;
           if (data.isOthers) {
-            return <span className="italic text-base-content/60">{data.label}</span>;
+            return (
+              <span className="text-base-content/60 italic">{data.label}</span>
+            );
           }
           return (
             <KeyLink
@@ -95,30 +113,40 @@ export function LimitSpendTable({ rows, keys }: { rows: LimitSpendRow[]; keys: A
         cell: ({ getValue }) => getValue<number>(),
       },
     ],
-    [keys],
+    [keys]
   );
 
   return (
     <DataTable
-      data={displayData}
       columns={columns}
-      searchPlaceholder="Filter keys…"
+      data={displayData}
       emptyMessage="No spend or limits recorded yet"
+      footer={footer}
       getRowId={(row) => row.id}
       onSearchActiveChange={onSearchActiveChange}
-      footer={footer}
+      searchPlaceholder="Filter keys…"
     />
   );
 }
 
-export function RecentCostTable({ rows, keys }: { rows: CostRecentEvent[]; keys: APIKey[] }) {
+export function RecentCostTable({
+  rows,
+  keys,
+}: {
+  rows: CostRecentEvent[];
+  keys: APIKey[];
+}) {
   const columns = useMemo<ColumnDef<CostRecentEvent, unknown>[]>(
     () => [
       {
         id: "time",
         accessorFn: (row) => new Date(row.time * 1000).toLocaleTimeString(),
         header: "Time",
-        cell: ({ getValue }) => <span className="whitespace-nowrap text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap text-base-content/70">
+            {getValue<string>()}
+          </span>
+        ),
       },
       {
         id: "key",
@@ -126,7 +154,11 @@ export function RecentCostTable({ rows, keys }: { rows: CostRecentEvent[]; keys:
         header: "Key",
         cell: ({ row }) =>
           row.original.key_id ? (
-            <KeyLink keys={keys} maskedId={row.original.key_id} className="font-mono text-xs" />
+            <KeyLink
+              className="font-mono text-xs"
+              keys={keys}
+              maskedId={row.original.key_id}
+            />
           ) : (
             "—"
           ),
@@ -141,7 +173,11 @@ export function RecentCostTable({ rows, keys }: { rows: CostRecentEvent[]; keys:
         id: "model",
         accessorKey: "model",
         header: "Model",
-        cell: ({ getValue }) => <span className="text-xs text-base-content/60">{getValue<string>() ?? "—"}</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/60 text-xs">
+            {getValue<string>() ?? "—"}
+          </span>
+        ),
       },
       {
         id: "total",
@@ -162,16 +198,16 @@ export function RecentCostTable({ rows, keys }: { rows: CostRecentEvent[]; keys:
         cell: ({ getValue }) => formatUsd(getValue<number>()),
       },
     ],
-    [keys],
+    [keys]
   );
 
   return (
     <DataTable
-      data={rows}
       columns={columns}
-      searchPlaceholder="Filter events…"
+      data={rows}
       emptyMessage="No recent events"
       getRowId={(row, index) => `${row.time}-${row.model}-${index}`}
+      searchPlaceholder="Filter events…"
     />
   );
 }
@@ -182,7 +218,11 @@ const TRANSPORT_COLORS: Record<string, () => string> = {
   datadog: chartPalette.warning,
 };
 
-export function TransportsTable({ transports }: { transports: CostTransport[] }) {
+export function TransportsTable({
+  transports,
+}: {
+  transports: CostTransport[];
+}) {
   const columns = useMemo<ColumnDef<CostTransport, unknown>[]>(
     () => [
       {
@@ -195,7 +235,9 @@ export function TransportsTable({ transports }: { transports: CostTransport[] })
             <span
               className="badge badge-sm"
               style={{
-                backgroundColor: (TRANSPORT_COLORS[type] ?? chartPalette.primary)(),
+                backgroundColor: (
+                  TRANSPORT_COLORS[type] ?? chartPalette.primary
+                )(),
                 color: "white",
                 border: 0,
               }}
@@ -208,21 +250,27 @@ export function TransportsTable({ transports }: { transports: CostTransport[] })
       {
         id: "destination",
         accessorFn: (row) =>
-          row.path ?? row.table_name ?? (row.host ? `${row.host}:${row.port ?? ""}` : undefined) ?? row.namespace ?? "—",
+          row.path ??
+          row.table_name ??
+          (row.host ? `${row.host}:${row.port ?? ""}` : undefined) ??
+          row.namespace ??
+          "—",
         header: "Destination",
-        cell: ({ getValue }) => <span className="text-base-content/70">{getValue<string>()}</span>,
+        cell: ({ getValue }) => (
+          <span className="text-base-content/70">{getValue<string>()}</span>
+        ),
       },
     ],
-    [],
+    []
   );
 
   return (
     <DataTable
-      data={transports}
       columns={columns}
-      searchable={false}
+      data={transports}
       emptyMessage="No transports configured"
       getRowId={(row, index) => `${row.type}-${index}`}
+      searchable={false}
     />
   );
 }

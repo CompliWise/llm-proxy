@@ -7,28 +7,28 @@ import type {
   AdminUser,
   AdminUserRecord,
   APIKey,
+  BYOBanRecord,
+  BYOKeyRecord,
+  CircuitActivityResponse,
   ConfigSummary,
   CostResponse,
   CreateAdminUserRequest,
   CreateAPIKeyRequest,
+  CreateBYOBanRequest,
   CreateKeyRequestBody,
   HealthResponse,
   KeyRequestRecord,
   KeyStatsResponse,
-  CircuitActivityResponse,
   ModelStatusResponse,
   PIIResponse,
-  ProvisioningStatus,
   Provider,
+  ProvisioningStatus,
   RateLimitsResponse,
+  ReviewKeyRequestBody,
   ShareCreateResponse,
   ShareInfo,
   UpdateAdminUserRoleRequest,
   UpdateAPIKeyRequest,
-  ReviewKeyRequestBody,
-  BYOBanRecord,
-  BYOKeyRecord,
-  CreateBYOBanRequest,
   UsageResponse,
 } from "../types";
 import { usePollInterval } from "./use-poll-interval";
@@ -48,10 +48,13 @@ export const queryKeys = {
   modelStatus: ["admin", "model-status"] as const,
   provisioning: ["admin", "provisioning"] as const,
   users: ["admin", "users"] as const,
-  keyRequests: (status?: string) => ["admin", "key-requests", status ?? "all"] as const,
+  keyRequests: (status?: string) =>
+    ["admin", "key-requests", status ?? "all"] as const,
   myKeyRequests: ["admin", "key-requests", "mine"] as const,
-  byoBans: (provider?: string) => ["admin", "byo-bans", provider ?? "all"] as const,
-  byoKeys: (provider?: string) => ["admin", "byo-keys", provider ?? "all"] as const,
+  byoBans: (provider?: string) =>
+    ["admin", "byo-bans", provider ?? "all"] as const,
+  byoKeys: (provider?: string) =>
+    ["admin", "byo-keys", provider ?? "all"] as const,
 };
 
 export function useMe() {
@@ -77,7 +80,8 @@ export function useKey(key: string | undefined) {
   const role = me?.role ?? "viewer";
   return useQuery({
     queryKey: queryKeys.key(key ?? ""),
-    queryFn: () => apiFetch<APIKey>(`/admin/api/keys/${encodeURIComponent(key!)}`),
+    queryFn: () =>
+      apiFetch<APIKey>(`/admin/api/keys/${encodeURIComponent(key!)}`),
     enabled: Boolean(key) && roleAtLeast(role, "viewer"),
   });
 }
@@ -88,7 +92,10 @@ export function useKeyStats(key: string | undefined) {
   const refetchInterval = usePollInterval();
   return useQuery({
     queryKey: queryKeys.keyStats(key ?? ""),
-    queryFn: () => apiFetch<KeyStatsResponse>(`/admin/api/keys/${encodeURIComponent(key!)}/stats`),
+    queryFn: () =>
+      apiFetch<KeyStatsResponse>(
+        `/admin/api/keys/${encodeURIComponent(key!)}/stats`
+      ),
     enabled: Boolean(key) && roleAtLeast(role, "viewer"),
     refetchInterval,
     refetchIntervalInBackground: true,
@@ -126,7 +133,8 @@ export function useCircuitActivity() {
   const refetchInterval = usePollInterval();
   return useQuery({
     queryKey: queryKeys.circuitActivity,
-    queryFn: () => apiFetch<CircuitActivityResponse>("/admin/api/circuit-activity"),
+    queryFn: () =>
+      apiFetch<CircuitActivityResponse>("/admin/api/circuit-activity"),
     enabled: roleAtLeast(role, "editor"),
     refetchInterval,
     refetchIntervalInBackground: true,
@@ -216,7 +224,10 @@ export function useCreateKey() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateAPIKeyRequest) =>
-      apiFetch<APIKey>("/admin/api/keys", { method: "POST", body: JSON.stringify(body) }),
+      apiFetch<APIKey>("/admin/api/keys", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
     onSuccess: () => invalidateKeys(queryClient),
   });
 }
@@ -240,7 +251,9 @@ export function useDeleteKey() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (key: string) =>
-      apiFetch<void>(`/admin/api/keys/${encodeURIComponent(key)}`, { method: "DELETE" }),
+      apiFetch<void>(`/admin/api/keys/${encodeURIComponent(key)}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => invalidateKeys(queryClient),
   });
 }
@@ -254,7 +267,8 @@ export function useLogout() {
 export function useShare(id: string | undefined) {
   return useQuery({
     queryKey: ["admin", "share", id ?? ""] as const,
-    queryFn: () => apiFetch<ShareInfo>(`/admin/api/share/${encodeURIComponent(id!)}`),
+    queryFn: () =>
+      apiFetch<ShareInfo>(`/admin/api/share/${encodeURIComponent(id!)}`),
     enabled: Boolean(id),
     retry: false,
   });
@@ -273,7 +287,9 @@ export function useCreateShare() {
 export function useDeleteShare() {
   return useMutation({
     mutationFn: (id: string) =>
-      apiFetch<void>(`/admin/api/share/${encodeURIComponent(id)}`, { method: "DELETE" }),
+      apiFetch<void>(`/admin/api/share/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      }),
   });
 }
 
@@ -302,11 +318,20 @@ export function useCreateUser() {
 export function useUpdateUserRole() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ email, role }: { email: string; role: UpdateAdminUserRoleRequest["role"] }) =>
-      apiFetch<AdminUserRecord>(`/admin/api/users/${encodeURIComponent(email)}`, {
-        method: "PATCH",
-        body: JSON.stringify({ role }),
-      }),
+    mutationFn: ({
+      email,
+      role,
+    }: {
+      email: string;
+      role: UpdateAdminUserRoleRequest["role"];
+    }) =>
+      apiFetch<AdminUserRecord>(
+        `/admin/api/users/${encodeURIComponent(email)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ role }),
+        }
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.users });
       qc.invalidateQueries({ queryKey: queryKeys.me });
@@ -318,7 +343,9 @@ export function useDeleteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (email: string) =>
-      apiFetch<void>(`/admin/api/users/${encodeURIComponent(email)}`, { method: "DELETE" }),
+      apiFetch<void>(`/admin/api/users/${encodeURIComponent(email)}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: queryKeys.users }),
   });
 }
@@ -363,10 +390,13 @@ export function useReviewKeyRequest() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, ...body }: ReviewKeyRequestBody & { id: string }) =>
-      apiFetch<KeyRequestRecord>(`/admin/api/key-requests/${encodeURIComponent(id)}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      }),
+      apiFetch<KeyRequestRecord>(
+        `/admin/api/key-requests/${encodeURIComponent(id)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        }
+      ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.keyRequests() });
       qc.invalidateQueries({ queryKey: queryKeys.myKeyRequests });
@@ -423,9 +453,12 @@ export function useUnbanBYOKey() {
       if (!permissions.canManageByo(me?.role)) {
         return Promise.reject(new Error("Admin role required"));
       }
-      return apiFetch<void>(`/admin/api/byo-bans/${encodeURIComponent(provider)}/${encodeURIComponent(hash)}`, {
-        method: "DELETE",
-      });
+      return apiFetch<void>(
+        `/admin/api/byo-bans/${encodeURIComponent(provider)}/${encodeURIComponent(hash)}`,
+        {
+          method: "DELETE",
+        }
+      );
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "byo-bans"] });

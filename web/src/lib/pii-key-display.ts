@@ -1,7 +1,7 @@
+import type { APIKey } from "../types";
 import { maskKeyId } from "./format";
 import { findKeyByMaskedId } from "./key-routes";
 import { matchedProxyKeyPrefix, trimProxyKeyPrefix } from "./proxy-key";
-import type { APIKey } from "../types";
 
 const MASKED_ID_SPLIT = /…|\u2026/;
 
@@ -23,28 +23,42 @@ export function maskedIdHead(maskedId: string): string {
 
 export function isProxyMaskedKeyId(maskedId: string): boolean {
   const head = maskedIdHead(maskedId);
-  if (!head) return false;
-  return matchedProxyKeyPrefix(head) !== null || head.startsWith("sk-iw") || head.startsWith("iw:");
+  if (!head) {
+    return false;
+  }
+  return (
+    matchedProxyKeyPrefix(head) !== null ||
+    head.startsWith("sk-iw") ||
+    head.startsWith("iw:")
+  );
 }
 
 export function isByoMaskedKeyId(maskedId: string): boolean {
-  if (!maskedId || !MASKED_ID_SPLIT.test(maskedId)) return false;
+  if (!(maskedId && MASKED_ID_SPLIT.test(maskedId))) {
+    return false;
+  }
   return !isProxyMaskedKeyId(maskedId);
 }
 
 function byoFamilyLabel(maskedId: string): string {
   const head = maskedIdHead(maskedId);
   for (const [prefix, label] of BYO_PREFIX_LABELS) {
-    if (head.startsWith(prefix)) return label;
+    if (head.startsWith(prefix)) {
+      return label;
+    }
   }
   return head || maskedId;
 }
 
 export function piiKeyPrimaryLabel(maskedId: string, keys: APIKey[]): string {
-  if (!maskedId) return "—";
+  if (!maskedId) {
+    return "—";
+  }
 
   const linked = findKeyByMaskedId(maskedId, keys);
-  if (linked?.description?.trim()) return linked.description.trim();
+  if (linked?.description?.trim()) {
+    return linked.description.trim();
+  }
   if (linked) {
     const body = trimProxyKeyPrefix(linked.key);
     return body.length <= 8 ? body : `${body.slice(0, 8)}…`;
@@ -57,11 +71,18 @@ export function piiKeyPrimaryLabel(maskedId: string, keys: APIKey[]): string {
   return byoFamilyLabel(maskedId);
 }
 
-export function piiKeySecondaryLabel(maskedId: string, keys: APIKey[]): string | undefined {
-  if (!maskedId) return undefined;
+export function piiKeySecondaryLabel(
+  maskedId: string,
+  keys: APIKey[]
+): string | undefined {
+  if (!maskedId) {
+    return;
+  }
 
   const linked = findKeyByMaskedId(maskedId, keys);
-  if (linked) return maskKeyId(linked.key);
+  if (linked) {
+    return maskKeyId(linked.key);
+  }
 
   if (isProxyMaskedKeyId(maskedId)) {
     return "sk-iw…";
@@ -75,7 +96,11 @@ export function piiKeySecondaryLabel(maskedId: string, keys: APIKey[]): string |
 }
 
 export function piiKeyShowSecondary(maskedId: string, keys: APIKey[]): boolean {
-  if (!maskedId) return false;
-  if (findKeyByMaskedId(maskedId, keys)) return true;
+  if (!maskedId) {
+    return false;
+  }
+  if (findKeyByMaskedId(maskedId, keys)) {
+    return true;
+  }
   return isByoMaskedKeyId(maskedId) || isProxyMaskedKeyId(maskedId);
 }

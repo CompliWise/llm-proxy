@@ -1,26 +1,31 @@
+import type { APIKey, PiiRedactSetting, Provider } from "../types";
 import type { CostLimitPeriod } from "./format";
 import { costLimitFormFromKey } from "./format";
-import type { APIKey, PiiRedactSetting, Provider } from "../types";
 
-export const KEY_PROVIDERS: Provider[] = ["openai", "anthropic", "gemini", "bedrock"];
+export const KEY_PROVIDERS: Provider[] = [
+  "openai",
+  "anthropic",
+  "gemini",
+  "bedrock",
+];
 export const VIEWER_PROVIDERS: Provider[] = ["openai", "anthropic", "gemini"];
 
 export type PiiFormValue = "inherit" | "on" | "off";
 
-export type KeyFormState = {
-  provider: Provider;
+export interface KeyFormState {
   actual_key: string;
-  description: string;
-  cost_limit_period: CostLimitPeriod;
-  cost_limit_dollars: string;
-  enabled: boolean;
-  redact_pii: PiiFormValue;
-  rate_limit_rpm: string;
-  rate_limit_tpm: string;
-  rate_limit_rpd: string;
-  rate_limit_tpd: string;
   anthropic_tier: string;
-};
+  cost_limit_dollars: string;
+  cost_limit_period: CostLimitPeriod;
+  description: string;
+  enabled: boolean;
+  provider: Provider;
+  rate_limit_rpd: string;
+  rate_limit_rpm: string;
+  rate_limit_tpd: string;
+  rate_limit_tpm: string;
+  redact_pii: PiiFormValue;
+}
 
 export const defaultKeyForm: KeyFormState = {
   provider: "openai",
@@ -38,31 +43,49 @@ export const defaultKeyForm: KeyFormState = {
 };
 
 export function piiToFormValue(value?: PiiRedactSetting): PiiFormValue {
-  if (value === true) return "on";
-  if (value === false) return "off";
+  if (value === true) {
+    return "on";
+  }
+  if (value === false) {
+    return "off";
+  }
   return "inherit";
 }
 
 export function piiFromFormValue(value: PiiFormValue): PiiRedactSetting {
-  if (value === "on") return true;
-  if (value === "off") return false;
+  if (value === "on") {
+    return true;
+  }
+  if (value === "off") {
+    return false;
+  }
   return null;
 }
 
 export function piiLabel(value?: PiiRedactSetting): string {
-  if (value === true) return "On";
-  if (value === false) return "Off";
+  if (value === true) {
+    return "On";
+  }
+  if (value === false) {
+    return "Off";
+  }
   return "Inherit";
 }
 
 export function formPiiOffRequiresBedrock(
   redactPii: PiiFormValue,
   globalPiiEnabled: boolean,
-  canBypass: boolean,
+  canBypass: boolean
 ): boolean {
-  if (canBypass) return false;
-  if (redactPii === "off") return true;
-  if (redactPii === "inherit" && globalPiiEnabled) return false;
+  if (canBypass) {
+    return false;
+  }
+  if (redactPii === "off") {
+    return true;
+  }
+  if (redactPii === "inherit" && globalPiiEnabled) {
+    return false;
+  }
   return false;
 }
 
@@ -93,7 +116,7 @@ export function costLimitsFromForm(form: KeyFormState): {
 
 export function keyFormFromRecord(
   record: APIKey,
-  anthropicDefaultTier: string,
+  anthropicDefaultTier: string
 ): KeyFormState {
   const costLimit = costLimitFormFromKey(record);
   return {
@@ -114,10 +137,18 @@ export function keyFormFromRecord(
 
 export function formatRateLimits(record: APIKey): string {
   const parts: string[] = [];
-  if (record.rate_limit_rpm) parts.push(`${record.rate_limit_rpm} rpm`);
-  if (record.rate_limit_tpm) parts.push(`${record.rate_limit_tpm.toLocaleString()} tpm`);
-  if (record.rate_limit_rpd) parts.push(`${record.rate_limit_rpd} rpd`);
-  if (record.rate_limit_tpd) parts.push(`${record.rate_limit_tpd.toLocaleString()} tpd`);
+  if (record.rate_limit_rpm) {
+    parts.push(`${record.rate_limit_rpm} rpm`);
+  }
+  if (record.rate_limit_tpm) {
+    parts.push(`${record.rate_limit_tpm.toLocaleString()} tpm`);
+  }
+  if (record.rate_limit_rpd) {
+    parts.push(`${record.rate_limit_rpd} rpd`);
+  }
+  if (record.rate_limit_tpd) {
+    parts.push(`${record.rate_limit_tpd.toLocaleString()} tpd`);
+  }
   return parts.length ? parts.join(" · ") : "—";
 }
 

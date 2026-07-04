@@ -3,7 +3,9 @@ import { useState } from "react";
 import { CopyButton } from "./copy-button";
 
 export function maskKey(key: string): string {
-  if (key.length <= 12) return "••••";
+  if (key.length <= 12) {
+    return "••••";
+  }
   return `${key.slice(0, 7)}${"•".repeat(18)}${key.slice(-4)}`;
 }
 
@@ -25,14 +27,18 @@ export function MaskedKey({
         {revealed ? value : maskKey(value)}
       </code>
       <button
-        type="button"
         className="btn btn-ghost btn-xs shrink-0"
         onClick={() => setRevealed((v) => !v)}
+        type="button"
       >
         {revealed ? "Hide" : "Reveal"}
       </button>
       {revealed ? (
-        <CopyButton value={value} label="Copy" className="btn btn-ghost btn-xs shrink-0 gap-1" />
+        <CopyButton
+          className="btn btn-ghost btn-xs shrink-0 gap-1"
+          label="Copy"
+          value={value}
+        />
       ) : null}
     </div>
   );

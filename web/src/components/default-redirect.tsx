@@ -10,5 +10,5 @@ export default function DefaultRedirect() {
     return <LoadingBlock />;
   }
   const role = me?.role ?? "viewer";
-  return <Navigate to={defaultPathForRole(role)} replace />;
+  return <Navigate replace to={defaultPathForRole(role)} />;
 }

@@ -1,8 +1,7 @@
-import { useMemo } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-
-import DataTable from "../ui/data-table";
+import { useMemo } from "react";
 import type { AdminRole, AdminUserRecord } from "../../types";
+import DataTable from "../ui/data-table";
 
 function RoleBadge({ role }: { role: AdminRole }) {
   const cls =
@@ -15,18 +14,22 @@ function RoleBadge({ role }: { role: AdminRole }) {
 }
 
 function formatOptionalTime(value?: string): string {
-  if (!value) return "—";
+  if (!value) {
+    return "—";
+  }
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  if (Number.isNaN(d.getTime())) {
+    return "—";
+  }
   return d.toLocaleString();
 }
 
 interface UsersTableProps {
-  users: AdminUserRecord[];
-  currentEmail?: string;
   adminCount: number;
-  onEdit: (user: AdminUserRecord) => void;
+  currentEmail?: string;
   onDelete: (user: AdminUserRecord) => void;
+  onEdit: (user: AdminUserRecord) => void;
+  users: AdminUserRecord[];
 }
 
 export default function UsersTable({
@@ -47,7 +50,9 @@ export default function UsersTable({
           return (
             <span>
               {row.original.email}
-              {isSelf ? <span className="ml-2 text-xs text-base-content/50">(you)</span> : null}
+              {isSelf ? (
+                <span className="ml-2 text-base-content/50 text-xs">(you)</span>
+              ) : null}
             </span>
           );
         },
@@ -56,7 +61,7 @@ export default function UsersTable({
         id: "name",
         accessorKey: "name",
         header: "Name",
-        cell: ({ getValue }) => (getValue<string>() || "—"),
+        cell: ({ getValue }) => getValue<string>() || "—",
       },
       {
         id: "role",
@@ -85,14 +90,19 @@ export default function UsersTable({
           const isLastAdmin = user.role === "admin" && adminCount <= 1;
           return (
             <div className="flex justify-end gap-2">
-              <button type="button" className="btn btn-ghost btn-xs" disabled={isSelf} onClick={() => onEdit(user)}>
+              <button
+                className="btn btn-ghost btn-xs"
+                disabled={isSelf}
+                onClick={() => onEdit(user)}
+                type="button"
+              >
                 Edit role
               </button>
               <button
-                type="button"
                 className="btn btn-ghost btn-xs text-error"
                 disabled={isSelf || isLastAdmin}
                 onClick={() => onDelete(user)}
+                type="button"
               >
                 Delete
               </button>
@@ -101,8 +111,10 @@ export default function UsersTable({
         },
       },
     ],
-    [adminCount, currentEmail, onDelete, onEdit],
+    [adminCount, currentEmail, onDelete, onEdit]
   );
 
-  return <DataTable columns={columns} data={users} emptyMessage="No users yet" />;
+  return (
+    <DataTable columns={columns} data={users} emptyMessage="No users yet" />
+  );
 }

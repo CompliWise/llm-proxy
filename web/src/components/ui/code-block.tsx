@@ -25,14 +25,23 @@ function resolveLanguage(language: string): string {
   return LANG_ALIASES[key] ?? key;
 }
 
-export function CodeBlock({ code, language }: { code: string; language: string }) {
+export function CodeBlock({
+  code,
+  language,
+}: {
+  code: string;
+  language: string;
+}) {
   const lang = useMemo(() => resolveLanguage(language), [language]);
 
   return (
     <SyntaxHighlighter
-      language={lang}
-      style={oneDark}
-      PreTag="div"
+      codeTagProps={{
+        style: {
+          fontFamily:
+            "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+        },
+      }}
       customStyle={{
         margin: 0,
         padding: "1rem 1.25rem",
@@ -40,11 +49,9 @@ export function CodeBlock({ code, language }: { code: string; language: string }
         fontSize: "0.875rem",
         lineHeight: 1.6,
       }}
-      codeTagProps={{
-        style: {
-          fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        },
-      }}
+      language={lang}
+      PreTag="div"
+      style={oneDark}
     >
       {code}
     </SyntaxHighlighter>

@@ -9,11 +9,11 @@ import ts from "typescript";
 type Severity = "error" | "warn";
 
 interface Finding {
-  severity: Severity;
   file: string;
   line: number;
-  rule: string;
   message: string;
+  rule: string;
+  severity: Severity;
 }
 
 const RULES = {
@@ -48,7 +48,7 @@ function walk(webDir: string, rel: string, visit: (sf: ts.SourceFile) => void) {
     text,
     ts.ScriptTarget.Latest,
     true,
-    rel.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
+    rel.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS
   );
   visit(sf);
 }
@@ -63,7 +63,13 @@ function lintCall(sf: ts.SourceFile, rel: string, node: ts.CallExpression) {
   const sev: Severity = isTestFile(rel) ? "warn" : "error";
 
   if (text === "eval") {
-    emit({ severity: sev, file: sf.fileName, line, rule: RULES.EVAL, message: "eval() executes arbitrary code" });
+    emit({
+      severity: sev,
+      file: sf.fileName,
+      line,
+      rule: RULES.EVAL,
+      message: "eval() executes arbitrary code",
+    });
   }
   if (text === "document.write") {
     emit({
@@ -82,13 +88,18 @@ function lintCall(sf: ts.SourceFile, rel: string, node: ts.CallExpression) {
         file: sf.fileName,
         line,
         rule: RULES.LOCALSTORAGE_SECRET,
-        message: "storing secrets in localStorage is readable by any script on the origin",
+        message:
+          "storing secrets in localStorage is readable by any script on the origin",
       });
     }
   }
 }
 
-function lintPropertyAccess(sf: ts.SourceFile, rel: string, node: ts.PropertyAccessExpression) {
+function lintPropertyAccess(
+  sf: ts.SourceFile,
+  rel: string,
+  node: ts.PropertyAccessExpression
+) {
   const name = node.name.text;
   const line = lineOf(sf, node);
   const sev: Severity = isTestFile(rel) ? "warn" : "error";
@@ -124,12 +135,17 @@ function lintJsx(sf: ts.SourceFile, rel: string, node: ts.JsxAttribute) {
       const el = node.parent?.parent;
       if (el && ts.isJsxOpeningElement(el)) {
         const hasNoopener = el.attributes.properties.some((a) => {
-          if (!ts.isJsxAttribute(a)) return false;
+          if (!ts.isJsxAttribute(a)) {
+            return false;
+          }
           const n = a.name.getText(sf);
-          if (n !== "rel") return false;
-          return a.initializer?.getText(sf).includes("noopener") ||
-            a.initializer?.getText(sf).includes("noreferrer") ||
-            false;
+          if (n !== "rel") {
+            return false;
+          }
+          return (
+            a.initializer?.getText(sf).includes("noopener") ||
+            a.initializer?.getText(sf).includes("noreferrer")
+          );
         });
         if (!hasNoopener) {
           emit({
@@ -137,7 +153,8 @@ function lintJsx(sf: ts.SourceFile, rel: string, node: ts.JsxAttribute) {
             file: sf.fileName,
             line,
             rule: RULES.TARGET_BLANK,
-            message: 'target="_blank" links should include rel="noopener noreferrer"',
+            message:
+              'target="_blank" links should include rel="noopener noreferrer"',
           });
         }
       }
@@ -147,12 +164,22 @@ function lintJsx(sf: ts.SourceFile, rel: string, node: ts.JsxAttribute) {
 
 function isBenignKeyLiteral(raw: string): boolean {
   const lower = raw.toLowerCase();
-  return ["fake", "placeholder", "your_", "your-", "xxx", "example", "here"].some((f) =>
-    lower.includes(f),
-  );
+  return [
+    "fake",
+    "placeholder",
+    "your_",
+    "your-",
+    "xxx",
+    "example",
+    "here",
+  ].some((f) => lower.includes(f));
 }
 
-function lintStringLiteral(sf: ts.SourceFile, rel: string, node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral) {
+function lintStringLiteral(
+  sf: ts.SourceFile,
+  rel: string,
+  node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral
+) {
   const raw = node.text;
   const line = lineOf(sf, node);
   const sev: Severity = isTestFile(rel) ? "warn" : "error";
@@ -175,7 +202,12 @@ function lintStringLiteral(sf: ts.SourceFile, rel: string, node: ts.StringLitera
       message: "possible hardcoded credential assignment",
     });
   }
-  if (/^http:\/\//.test(raw) && !raw.includes("localhost") && !raw.includes("127.0.0.1") && !raw.includes("w3.org")) {
+  if (
+    /^http:\/\//.test(raw) &&
+    !raw.includes("localhost") &&
+    !raw.includes("127.0.0.1") &&
+    !raw.includes("w3.org")
+  ) {
     emit({
       severity: "warn",
       file: sf.fileName,
@@ -186,9 +218,15 @@ function lintStringLiteral(sf: ts.SourceFile, rel: string, node: ts.StringLitera
   }
 }
 
-function lintNewExpression(sf: ts.SourceFile, rel: string, node: ts.NewExpression) {
+function lintNewExpression(
+  sf: ts.SourceFile,
+  rel: string,
+  node: ts.NewExpression
+) {
   const text = node.expression.getText(sf);
-  if (text !== "Function") return;
+  if (text !== "Function") {
+    return;
+  }
   emit({
     severity: isTestFile(rel) ? "warn" : "error",
     file: sf.fileName,
@@ -200,13 +238,21 @@ function lintNewExpression(sf: ts.SourceFile, rel: string, node: ts.NewExpressio
 
 function lintSource(sf: ts.SourceFile, rel: string) {
   const visit = (node: ts.Node) => {
-    if (ts.isCallExpression(node)) lintCall(sf, rel, node);
-    if (ts.isPropertyAccessExpression(node)) lintPropertyAccess(sf, rel, node);
-    if (ts.isJsxAttribute(node)) lintJsx(sf, rel, node);
+    if (ts.isCallExpression(node)) {
+      lintCall(sf, rel, node);
+    }
+    if (ts.isPropertyAccessExpression(node)) {
+      lintPropertyAccess(sf, rel, node);
+    }
+    if (ts.isJsxAttribute(node)) {
+      lintJsx(sf, rel, node);
+    }
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
       lintStringLiteral(sf, rel, node);
     }
-    if (ts.isNewExpression(node)) lintNewExpression(sf, rel, node);
+    if (ts.isNewExpression(node)) {
+      lintNewExpression(sf, rel, node);
+    }
     ts.forEachChild(node, visit);
   };
   visit(sf);
@@ -221,7 +267,13 @@ function main() {
     for (const ent of fs.readdirSync(abs, { withFileTypes: true })) {
       const child = path.join(rel, ent.name);
       if (ent.isDirectory()) {
-        if (ent.name === "node_modules" || ent.name === "dist" || ent.name.startsWith(".")) continue;
+        if (
+          ent.name === "node_modules" ||
+          ent.name === "dist" ||
+          ent.name.startsWith(".")
+        ) {
+          continue;
+        }
         scanDir(child);
         continue;
       }

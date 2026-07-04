@@ -27,13 +27,15 @@ export function PiiEntityBadges({
         const policy = piiEntityPolicy(name);
         return (
           <span
-            key={name}
             className={`badge badge-sm badge-outline gap-1 ${POLICY_BADGE[policy]}`}
+            key={name}
             title={PII_POLICY_HINTS[policy]}
           >
             <span>{name.replaceAll("_", " ")}</span>
             <span className="opacity-60">×{n}</span>
-            <span className="text-[0.6rem] uppercase tracking-wide opacity-70">{policy}</span>
+            <span className="text-[0.6rem] uppercase tracking-wide opacity-70">
+              {policy}
+            </span>
           </span>
         );
       })}

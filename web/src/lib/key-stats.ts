@@ -1,6 +1,5 @@
-import { maskKeyId } from "./format";
-import { redactedRateLimitScopeForKey } from "./key-routes";
 import type { RateLimitConfig, RateLimitsResponse } from "../types";
+import { redactedRateLimitScopeForKey } from "./key-routes";
 
 export function rateLimitScopeForKey(key: string): string {
   return `key:${key}`;
@@ -9,16 +8,21 @@ export function rateLimitScopeForKey(key: string): string {
 function counterForKeyScope(
   data: RateLimitsResponse | undefined,
   window: "day" | "minute",
-  key: string,
+  key: string
 ) {
   const counters = data?.snapshot?.[window]?.counters;
-  if (!counters) return undefined;
-  return counters[rateLimitScopeForKey(key)] ?? counters[redactedRateLimitScopeForKey(key)];
+  if (!counters) {
+    return;
+  }
+  return (
+    counters[rateLimitScopeForKey(key)] ??
+    counters[redactedRateLimitScopeForKey(key)]
+  );
 }
 
 export function rateLimitUsageForKey(
   data: RateLimitsResponse | undefined,
-  key: string,
+  key: string
 ): { window: "day" | "minute"; requests: number; tokens: number }[] {
   return (["day", "minute"] as const)
     .map((window) => {
@@ -34,9 +38,11 @@ export function rateLimitUsageForKey(
 
 export function rateLimitOverrideForKey(
   data: RateLimitsResponse | undefined,
-  key: string,
+  key: string
 ): RateLimitConfig | undefined {
   const perKey = data?.overrides?.PerKey;
-  if (!perKey) return undefined;
+  if (!perKey) {
+    return;
+  }
   return perKey[key] ?? perKey[redactedRateLimitScopeForKey(key)];
 }
