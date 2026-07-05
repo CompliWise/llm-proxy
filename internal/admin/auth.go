@@ -40,17 +40,18 @@ type authConfig struct {
 }
 
 type authenticator struct {
-	oauthConfig       *oauth2.Config
-	verifier          *oidc.IDTokenVerifier
-	sessionStore      *sessions.CookieStore
-	allowedDomain     string
-	redirectURLEnv    string
-	devBypass         bool
-	devFrontendOrigin string
-	userStore         *adminusers.Store
-	editorLimits      config.EditorLimitsConfig
-	viewerLimits      config.ViewerLimitsConfig
-	logger            *slog.Logger
+	oauthConfig        *oauth2.Config
+	verifier           *oidc.IDTokenVerifier
+	sessionStore       *sessions.CookieStore
+	allowedDomain      string
+	redirectURLEnv     string
+	devBypass          bool
+	devFrontendOrigin  string
+	userStore          *adminusers.Store
+	editorLimits       config.EditorLimitsConfig
+	viewerLimits       config.ViewerLimitsConfig
+	logger             *slog.Logger
+	portalAdminSecret  string
 }
 
 func newAuthenticator(logger *slog.Logger, adminCfg config.AdminDashboardConfig, userStore *adminusers.Store) (*authenticator, error) {
@@ -95,6 +96,10 @@ func newAuthenticator(logger *slog.Logger, adminCfg config.AdminDashboardConfig,
 		editorLimits:      adminCfg.EditorLimits,
 		viewerLimits:      adminCfg.ViewerLimits,
 		logger:            logger,
+		portalAdminSecret: readPortalAdminSecret(),
+	}
+	if auth.portalAdminSecret != "" {
+		logger.Info("admin auth: portal BFF forwarding enabled")
 	}
 
 	clientID := os.Getenv("LLM_PROXY_ADMIN_GOOGLE_CLIENT_ID")
@@ -411,6 +416,10 @@ func (a *authenticator) handleLogout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *authenticator) currentUser(r *http.Request) (*UserResponse, error) {
+	if user, ok := portalUserFromContext(r); ok {
+		return user, nil
+	}
+
 	session, err := a.sessionStore.Get(r, sessionName)
 	if err != nil {
 		return nil, err
@@ -422,18 +431,34 @@ func (a *authenticator) currentUser(r *http.Request) (*UserResponse, error) {
 	name, _ := session.Values[sessionUserName].(string)
 	picture, _ := session.Values[sessionUserPicture].(string)
 
-	role := string(adminusers.RoleViewer)
+	return a.buildUserResponse(r.Context(), email, name, picture, "")
+}
+
+func (a *authenticator) buildUserResponse(
+	ctx context.Context,
+	email, name, picture string,
+	portalRole adminusers.Role,
+) (*UserResponse, error) {
+	role := adminusers.RoleViewer
+	if portalRole != "" {
+		role = portalRole
+	}
 	if a.userStore != nil {
-		u, err := a.userStore.GetUser(r.Context(), email)
+		u, err := a.userStore.GetUser(ctx, email)
 		if err != nil {
-			return nil, fmt.Errorf("user lookup failed: %w", err)
-		}
-		role = string(u.Role)
-		if u.Name != "" {
-			name = u.Name
-		}
-		if u.Picture != "" {
-			picture = u.Picture
+			if portalRole == "" {
+				return nil, fmt.Errorf("user lookup failed: %w", err)
+			}
+		} else {
+			if portalRole == "" {
+				role = u.Role
+			}
+			if u.Name != "" {
+				name = u.Name
+			}
+			if u.Picture != "" {
+				picture = u.Picture
+			}
 		}
 	}
 
@@ -441,15 +466,15 @@ func (a *authenticator) currentUser(r *http.Request) (*UserResponse, error) {
 		Email:                           email,
 		Name:                            name,
 		Picture:                         picture,
-		Role:                            role,
+		Role:                            string(role),
 		CanBypassPIIOffNonBedrockPolicy: apikeys.CanBypassPIIOffNonBedrockPolicy(email),
 	}
-	if role == string(adminusers.RoleEditor) && a.editorLimits.MaxDailyCostLimitCents > 0 {
+	if role == adminusers.RoleEditor && a.editorLimits.MaxDailyCostLimitCents > 0 {
 		resp.EditorLimits = &EditorLimitsResponse{
 			MaxDailyCostLimitCents: a.editorLimits.MaxDailyCostLimitCents,
 		}
 	}
-	if role == string(adminusers.RoleViewer) {
+	if role == adminusers.RoleViewer {
 		resp.ViewerLimits = &ViewerLimitsResponse{
 			PersonalMonthlyCostLimitCents: viewerPersonalMonthlyLimitFromConfig(a.viewerLimits),
 		}

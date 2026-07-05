@@ -28,6 +28,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - PRESIDIO_ANALYZER_URL=http://presidio-analyzer:3000
       - LLM_PROXY_ADMIN_SESSION_SECRET=${LLM_PROXY_ADMIN_SESSION_SECRET:-dev-local-session-secret-not-for-prod}
+      - AI_GATEWAY_ADMIN_SYNC_SECRET=${AI_GATEWAY_ADMIN_SYNC_SECRET:-dev-only-change-me}
       - ADMIN_PUBLIC_BASE_URL=http://localhost:9002
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-local}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-local}

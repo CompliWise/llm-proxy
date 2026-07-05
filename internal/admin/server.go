@@ -68,6 +68,7 @@ func RegisterRoutes(r *mux.Router, deps Deps) {
 
 	api := adminRouter.PathPrefix("/api").Subrouter()
 	api.Use(h.corsMiddleware)
+	api.Use(auth.portalBFFMiddleware)
 	api.Use(auth.requireSession)
 
 	api.HandleFunc("/me", h.handleMe).Methods(http.MethodGet, http.MethodOptions)
