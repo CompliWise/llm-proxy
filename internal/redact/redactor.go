@@ -73,6 +73,7 @@ var DefaultEntityTypes = []string{
 	"IP_ADDRESS",
 	"DATE_OF_BIRTH",
 	"US_STREET_ADDRESS",
+	"API_KEY",
 }
 
 // DefaultGovIDEntityTypes are the Presidio entity types the ID gate scans

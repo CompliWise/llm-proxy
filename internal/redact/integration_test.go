@@ -336,6 +336,8 @@ func TestIntegration_RecognizersYAMLIsMounted(t *testing.T) {
 
 	mustHave := []string{
 		"DateOfBirthRecognizer",
+		"LLMApiKeyRecognizer",
+		"EnvApiKeyAssignmentRecognizer",
 		"UsStreetAddressRecognizer",
 	}
 	for _, name := range mustHave {
@@ -374,6 +376,23 @@ func TestIntegration_RecognizersYAMLIsMounted(t *testing.T) {
 // end-to-end.  Without a recognizers.yaml mount this fails with NO HITS
 // regardless of how DefaultEntityTypes is configured, so it's our most
 // load-bearing canary that the mount path is correct in production.
+func TestIntegration_ApiKeyRedacts(t *testing.T) {
+	r := newIntegrationRedactor(t, DefaultEntityTypes)
+
+	const fakeKey = "sk-proj-abc123def456ghi789jklmnop"
+	res, err := r.Redact(context.Background(), "OPENAI_API_KEY="+fakeKey)
+	if err != nil {
+		t.Fatalf("Redact: %v", err)
+	}
+	if !strings.Contains(res.Text, "[REDACTED:API_KEY]") {
+		t.Errorf("expected API_KEY marker; got %q (recognizers.yaml not "+
+			"mounted? counts=%v)", res.Text, res.EntityCounts)
+	}
+	if strings.Contains(res.Text, fakeKey) {
+		t.Errorf("raw API key leaked: %q", res.Text)
+	}
+}
+
 func TestIntegration_DateOfBirthRedacts(t *testing.T) {
 	r := newIntegrationRedactor(t, DefaultEntityTypes)
 

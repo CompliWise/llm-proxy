@@ -163,6 +163,48 @@ recognizers:
       - date
       - of
 
+  # --- REDACT-tier: API keys / env credentials -------------------------
+  - name: LLMApiKeyRecognizer
+    supported_language: en
+    supported_entity: API_KEY
+    type: custom
+    patterns:
+      - name: sk_vendor_prefixed
+        regex: '\bsk-(?:ant|proj|svcacct|or|iw)-[A-Za-z0-9_-]{10,}\b'
+        score: 0.85
+      - name: sk_generic
+        regex: '\bsk-[A-Za-z0-9_-]{20,}\b'
+        score: 0.75
+      - name: iw_proxy
+        regex: '\b(?:sk-iw-|iw[-_:])[A-Za-z0-9_-]{20,}\b'
+        score: 0.85
+      - name: google_api
+        regex: '\bAIza[0-9A-Za-z_-]{20,}\b'
+        score: 0.85
+      - name: aws_access_key
+        regex: '\bAKIA[0-9A-Z]{16}\b'
+        score: 0.9
+    context:
+      - api
+      - key
+      - secret
+      - token
+      - bearer
+      - openai
+      - anthropic
+      - gemini
+      - aws
+
+  - name: EnvApiKeyAssignmentRecognizer
+    supported_language: en
+    supported_entity: API_KEY
+    type: custom
+    patterns:
+      # OPENAI_API_KEY=sk-... or export ANTHROPIC_API_KEY="..."
+      - name: env_assignment
+        regex: '\b(?:export\s+)?[A-Z][A-Z0-9_]*(?:API[_A-Z0-9]*KEY|SECRET|TOKEN|PASSWORD)[A-Z0-9_]*\s*=\s*[^\s]+'
+        score: 0.85
+
   - name: UsStreetAddressRecognizer
     supported_language: en
     supported_entity: US_STREET_ADDRESS

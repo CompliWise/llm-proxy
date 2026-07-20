@@ -21,6 +21,10 @@ services:
         condition: service_healthy
       presidio-analyzer:
         condition: service_started
+      dynamodb:
+        condition: service_started
+    env_file:
+      - .env.provision
     environment:
       - PORT=9002
       - ENVIRONMENT=dev

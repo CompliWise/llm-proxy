@@ -20,10 +20,28 @@ features:
     fail_mode: "closed"
   admin_dashboard:
     enabled: true
+    allowed_domain: "example.com"
     dev_cors_origin: "http://localhost:3000"
   history:
     backend: local
     streams: [cost, pii, usage, ratelimit]
+  api_key_management:
+    provisioning:
+      enabled: true
+      dev_fake: false
+      openai:
+        enabled: true
+        # Requires LLM_PROXY_OPENAI_ADMIN_KEY with api.management.write scope
+        project_id: "${LLM_PROXY_OPENAI_PROJECT_ID}"
+      anthropic:
+        enabled: true
+        default_tier: metered
+        tiers:
+          metered: "${LLM_PROXY_ANTHROPIC_KEY_METERED}"
+          elevated: "${LLM_PROXY_ANTHROPIC_KEY_ELEVATED}"
+          unrestricted: "${LLM_PROXY_ANTHROPIC_KEY_UNRESTRICTED}"
+      gemini:
+        enabled: false   # set true + GCP creds if you need Gemini too
 
 providers:
   openai:

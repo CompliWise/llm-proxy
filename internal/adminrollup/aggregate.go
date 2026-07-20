@@ -245,14 +245,50 @@ func usageDataFromAggregates(totals map[string]float64, byModel, byProvider, byK
 		data["by_provider"] = scopeMapFromDim(byProvider)
 	}
 	if len(byKey) > 0 {
+		keyRows := buildDimRows(byKey, nil)
 		top, other := topNWithOther(flattenScopeDim(byKey), caps.ByKey)
-		data["by_key"] = scopeMapFromNames(top, other, "key")
+		data["by_key"] = usageScopeMapFromRows(keyRows, top, other, "key")
 	}
 	if len(byUser) > 0 {
+		userRows := buildDimRows(byUser, nil)
 		top, other := topNWithOther(flattenScopeDim(byUser), caps.ByUser)
-		data["by_user"] = scopeMapFromNames(top, other, "user")
+		data["by_user"] = usageScopeMapFromRows(userRows, top, other, "user")
 	}
 	return data
+}
+
+func usageScopeMapFromRows(rows map[string]map[string]float64, top []nameVal, otherTokens float64, kind string) map[string]map[string]float64 {
+	out := make(map[string]map[string]float64, len(top)+1)
+	for _, p := range top {
+		if fields := rows[p.Name]; fields != nil {
+			m := make(map[string]float64, len(fields))
+			for f, v := range fields {
+				m[f] = v
+			}
+			out[p.Name] = m
+			continue
+		}
+		out[p.Name] = map[string]float64{"tokens": p.Val}
+	}
+	if otherTokens <= 0 {
+		return out
+	}
+
+	topSet := make(map[string]struct{}, len(top))
+	for _, p := range top {
+		topSet[p.Name] = struct{}{}
+	}
+	other := make(map[string]float64)
+	for member, fields := range rows {
+		if _, inTop := topSet[member]; inTop {
+			continue
+		}
+		for f, v := range fields {
+			other[f] += v
+		}
+	}
+	out["other_"+kind] = other
+	return out
 }
 
 func usageScalarsFromTotals(totals map[string]float64) map[string]interface{} {

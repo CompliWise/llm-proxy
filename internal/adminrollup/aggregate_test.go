@@ -73,14 +73,20 @@ func TestMergeTodayUsageAggregates(t *testing.T) {
 				DimMemberField("claude", "tokens"):   400,
 			},
 			"by_key": {
-				DimMemberField("key-a", "tokens"): 500,
-				DimMemberField("key-b", "tokens"): 300,
-				DimMemberField("key-c", "tokens"): 200,
+				DimMemberField("key-a", "requests"): 5,
+				DimMemberField("key-a", "tokens"):   500,
+				DimMemberField("key-b", "requests"): 3,
+				DimMemberField("key-b", "tokens"):   300,
+				DimMemberField("key-c", "requests"): 2,
+				DimMemberField("key-c", "tokens"):   200,
 			},
 			"by_user": {
-				DimMemberField("user-1", "tokens"): 700,
-				DimMemberField("user-2", "tokens"): 200,
-				DimMemberField("user-3", "tokens"): 100,
+				DimMemberField("user-1", "requests"): 7,
+				DimMemberField("user-1", "tokens"):   700,
+				DimMemberField("user-2", "requests"): 2,
+				DimMemberField("user-2", "tokens"):   200,
+				DimMemberField("user-3", "requests"): 1,
+				DimMemberField("user-3", "tokens"):   100,
 			},
 		},
 	})
@@ -99,15 +105,21 @@ func TestMergeTodayUsageAggregates(t *testing.T) {
 
 	byKey, ok := snap["by_key"].(map[string]map[string]float64)
 	require.True(t, ok)
+	require.InDelta(t, 5, byKey["key-a"]["requests"], 0.001)
 	require.InDelta(t, 500, byKey["key-a"]["tokens"], 0.001)
+	require.InDelta(t, 3, byKey["key-b"]["requests"], 0.001)
 	require.InDelta(t, 300, byKey["key-b"]["tokens"], 0.001)
+	require.InDelta(t, 2, byKey["other_key"]["requests"], 0.001)
 	require.InDelta(t, 200, byKey["other_key"]["tokens"], 0.001)
 	require.NotContains(t, byKey, "key-c")
 
 	byUser, ok := snap["by_user"].(map[string]map[string]float64)
 	require.True(t, ok)
+	require.InDelta(t, 7, byUser["user-1"]["requests"], 0.001)
 	require.InDelta(t, 700, byUser["user-1"]["tokens"], 0.001)
+	require.InDelta(t, 2, byUser["user-2"]["requests"], 0.001)
 	require.InDelta(t, 200, byUser["user-2"]["tokens"], 0.001)
+	require.InDelta(t, 1, byUser["other_user"]["requests"], 0.001)
 	require.InDelta(t, 100, byUser["other_user"]["tokens"], 0.001)
 }
 

@@ -26,10 +26,11 @@ var defaultPolicy = map[string]Policy{
 	"DATE_OF_BIRTH":     PolicySeal,
 	"US_STREET_ADDRESS": PolicySeal,
 
-	// REDACT — payment rails
+	// REDACT — payment rails and credentials
 	"CREDIT_CARD":    PolicyRedact,
 	"US_BANK_NUMBER": PolicyRedact,
 	"IBAN_CODE":      PolicyRedact,
+	"API_KEY":        PolicyRedact,
 
 	// MASK — quasi-identifiers
 	"US_DRIVER_LICENSE": PolicyMask,
