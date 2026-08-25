@@ -30,6 +30,7 @@ function redirectBareAdmin() {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), redirectBareAdmin()],
+  envPrefix: ["VITE_", "STATSIG_CLIENT_"],
   base: "/admin/",
   build: {
     outDir: "dist",

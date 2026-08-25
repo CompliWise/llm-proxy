@@ -31,6 +31,7 @@ import (
 	"github.com/Instawork/llm-proxy/internal/modelstatusstats"
 	"github.com/Instawork/llm-proxy/internal/observability"
 	"github.com/Instawork/llm-proxy/internal/ocr"
+	"github.com/Instawork/llm-proxy/internal/otel"
 	"github.com/Instawork/llm-proxy/internal/pii"
 	"github.com/Instawork/llm-proxy/internal/providers"
 	"github.com/Instawork/llm-proxy/internal/provision"
@@ -38,8 +39,10 @@ import (
 	"github.com/Instawork/llm-proxy/internal/ratelimitstats"
 	"github.com/Instawork/llm-proxy/internal/redact"
 	"github.com/Instawork/llm-proxy/internal/redactapi"
+	"github.com/Instawork/llm-proxy/internal/statsig"
 	"github.com/Instawork/llm-proxy/internal/usagestats"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 )
 
 // CustomPrettyHandler implements a custom slog.Handler for pretty local output
@@ -1278,11 +1281,15 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 		port = defaultPort
 	}
 
+	otel.Initialize(logger, "llm-proxy")
+	statsig.Initialize(logger, "llm-proxy")
+
 	// Log configuration
 	yamlConfig.LogConfiguration(logger)
 
 	// Create router
 	r := mux.NewRouter()
+	r.Use(otelmux.Middleware("llm-proxy"))
 
 	// Initialize global provider manager
 	globalProviderManager = providers.NewProviderManager()
@@ -1907,6 +1914,9 @@ func gracefulShutdown(server *http.Server) {
 			}
 		}
 	}
+
+	statsig.Shutdown()
+	otel.Shutdown(ctx)
 
 	logger.Info("👋 Server shutdown complete")
 }

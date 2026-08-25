@@ -12,6 +12,9 @@ from onnxtr.io import DocumentFile
 from onnxtr.models import ocr_predictor
 from onnxtr.models.engine import EngineConfig
 
+from otel import initialize_otel, instrument_fastapi, shutdown_otel
+import statsig_client
+
 logger = logging.getLogger("ocr_sidecar")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
@@ -101,7 +104,12 @@ async def lifespan(app: FastAPI):
     )
     executor = ThreadPoolExecutor(max_workers=OCR_MAX_WORKERS)
     gate = asyncio.Semaphore(OCR_MAX_CONCURRENCY)
+    initialize_otel(service_name="ocr-sidecar")
+    instrument_fastapi(app)
+    statsig_client.initialize()
     yield
+    statsig_client.shutdown()
+    shutdown_otel()
     if executor is not None:
         executor.shutdown(wait=True, cancel_futures=False)
 
@@ -149,4 +157,9 @@ async def extract_text(image: UploadFile = File(...)) -> JSONResponse:
     finally:
         gate.release()
 
+    statsig_client.log_event(
+        "ocr.extract_text",
+        len(text),
+        {"status": "ok"},
+    )
     return JSONResponse(content={"text": text})
