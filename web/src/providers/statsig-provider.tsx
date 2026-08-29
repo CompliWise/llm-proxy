@@ -11,6 +11,39 @@ const STATSIG_CLIENT_KEY = import.meta.env.STATSIG_CLIENT_KEY ?? "";
 const STATSIG_ENVIRONMENT = import.meta.env.DEV
   ? "development"
   : "production";
+const STATSIG_DEVICE_ID_STORAGE_KEY = "statsig:deviceID:v1";
+
+function resolveDeviceId(): string | undefined {
+  try {
+    const existing = window.localStorage
+      .getItem(STATSIG_DEVICE_ID_STORAGE_KEY)
+      ?.trim();
+    if (existing) {
+      return existing;
+    }
+
+    const created = crypto.randomUUID();
+    window.localStorage.setItem(STATSIG_DEVICE_ID_STORAGE_KEY, created);
+    return created;
+  } catch {
+    return;
+  }
+}
+
+function buildStatsigUser() {
+  const customIDs: Record<string, string> = {};
+  const deviceID = resolveDeviceId();
+  if (deviceID) {
+    customIDs.deviceID = deviceID;
+    customIDs.stableID = deviceID;
+  }
+
+  return {
+    custom: { app: "llm-proxy-web" },
+    ...(Object.keys(customIDs).length > 0 ? { customIDs } : {}),
+    userID: "llm-proxy-admin",
+  };
+}
 
 /**
  * SaaS client SDK for the llm-proxy admin UI: session replay + autocapture.
@@ -39,10 +72,7 @@ export function StatsigAppProvider({ children }: StatsigAppProviderProps) {
         plugins,
       }}
       sdkKey={STATSIG_CLIENT_KEY}
-      user={{
-        custom: { app: "llm-proxy-web" },
-        userID: "llm-proxy-admin",
-      }}
+      user={buildStatsigUser()}
     >
       {children}
     </StatsigProvider>
