@@ -12,6 +12,9 @@
     "seclint": "cd .. && go run ./cmd/seclint --root . --web web"
   },
   "dependencies": {
+    "@statsig/react-bindings": "~3.33.4",
+    "@statsig/session-replay": "~3.33.4",
+    "@statsig/web-analytics": "~3.33.4",
     "@tanstack/react-query": "^5.66.9",
     "@tanstack/react-table": "^8.21.3",
     "chart.js": "^4.5.1",
