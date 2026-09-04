@@ -1284,6 +1284,11 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 	otel.Initialize(logger, "llm-proxy")
 	statsig.Initialize(logger, "llm-proxy")
 
+	// Fan the base logger out to the OTLP logs pipeline so gateway request logs
+	// land in Statsig Logs (not only Traces). No-op when logs export is off.
+	logger = slog.New(otel.WrapSlogHandler(logger.Handler(), "llm-proxy"))
+	slog.SetDefault(logger)
+
 	// Log configuration
 	yamlConfig.LogConfiguration(logger)
 

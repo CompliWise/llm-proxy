@@ -12,10 +12,15 @@ import (
 
 	otelapi "go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploghttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otellog "go.opentelemetry.io/otel/log"
+	global "go.opentelemetry.io/otel/log/global"
+	sdklog "go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -30,9 +35,10 @@ const (
 )
 
 var (
-	mu              sync.Mutex
-	tracerProvider  *sdktrace.TracerProvider
-	meterProvider   *metric.MeterProvider
+	mu             sync.Mutex
+	tracerProvider *sdktrace.TracerProvider
+	meterProvider  *metric.MeterProvider
+	loggerProvider *sdklog.LoggerProvider
 )
 
 type resolvedConfig struct {
@@ -46,8 +52,10 @@ type resolvedConfig struct {
 	certificatePath string
 	tracesURL       string
 	metricsURL      string
+	logsURL         string
 	tracesGRPC      bool
 	metricsGRPC     bool
+	logsGRPC        bool
 }
 
 func readEnv(name string) string {
@@ -161,8 +169,10 @@ func resolveConfig(serviceName string) resolvedConfig {
 	}
 	tracesExporter := parseExporter(readEnv("OTEL_TRACES_EXPORTER"))
 	metricsExporter := parseExporter(readEnv("OTEL_METRICS_EXPORTER"))
+	logsExporter := parseExporter(readEnv("OTEL_LOGS_EXPORTER"))
 	tracesURL := joinSignalURL(base, "traces", readEnv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"), tracesExporter)
 	metricsURL := joinSignalURL(base, "metrics", readEnv("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT"), metricsExporter)
+	logsURL := joinSignalURL(base, "logs", readEnv("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT"), logsExporter)
 
 	headers := map[string]string{}
 	if exportType == "statsig" {
@@ -196,17 +206,17 @@ func resolveConfig(serviceName string) resolvedConfig {
 		name = serviceName
 	}
 	attrs := map[string]string{
-		"appVersion":              version,
-		"deployment.environment":  environment,
-		"env":                     environment,
-		"version":                 version,
-		"service.namespace":       serviceNamespace,
+		"appVersion":             version,
+		"deployment.environment": environment,
+		"env":                    environment,
+		"version":                version,
+		"service.namespace":      serviceNamespace,
 	}
 	for k, v := range parseKeyValueList(readEnv("OTEL_RESOURCE_ATTRIBUTES")) {
 		attrs[k] = v
 	}
 
-	hasExporter := tracesURL != "" || metricsURL != ""
+	hasExporter := tracesURL != "" || metricsURL != "" || logsURL != ""
 	statsigMissing := exportType == "statsig" && headers[statsigOTLPHeader] == ""
 	canExport := hasExporter && !statsigMissing
 
@@ -221,8 +231,10 @@ func resolveConfig(serviceName string) resolvedConfig {
 		certificatePath: readEnv("OTEL_EXPORTER_OTLP_CERTIFICATE"),
 		tracesURL:       tracesURL,
 		metricsURL:      metricsURL,
+		logsURL:         logsURL,
 		tracesGRPC:      tracesExporter == "otlp_proto_grpc",
 		metricsGRPC:     metricsExporter == "otlp_proto_grpc",
+		logsGRPC:        logsExporter == "otlp_proto_grpc",
 	}
 }
 
@@ -365,6 +377,43 @@ func Initialize(logger *slog.Logger, serviceName string) {
 		}
 	}
 
+	if cfg.logsURL != "" {
+		var exporter sdklog.Exporter
+		if cfg.logsGRPC {
+			opts := []otlploggrpc.Option{
+				otlploggrpc.WithEndpoint(grpcTarget(cfg.logsURL)),
+				otlploggrpc.WithHeaders(cfg.headers),
+			}
+			if tlsCfg != nil {
+				opts = append(opts, otlploggrpc.WithTLSCredentials(credentials.NewTLS(tlsCfg)))
+			} else if !strings.HasPrefix(cfg.logsURL, "https://") {
+				opts = append(opts, otlploggrpc.WithInsecure())
+			}
+			exporter, err = otlploggrpc.New(ctx, opts...)
+		} else {
+			opts := []otlploghttp.Option{
+				otlploghttp.WithEndpointURL(cfg.logsURL),
+				otlploghttp.WithHeaders(cfg.headers),
+			}
+			if tlsCfg != nil {
+				opts = append(opts, otlploghttp.WithTLSClientConfig(tlsCfg))
+			}
+			exporter, err = otlploghttp.New(ctx, opts...)
+		}
+		if err != nil {
+			if logger != nil {
+				logger.Warn("OpenTelemetry log exporter setup failed", "error", err)
+			}
+		} else {
+			lp := sdklog.NewLoggerProvider(
+				sdklog.WithProcessor(sdklog.NewBatchProcessor(exporter)),
+				sdklog.WithResource(res),
+			)
+			global.SetLoggerProvider(lp)
+			loggerProvider = lp
+		}
+	}
+
 	if logger != nil {
 		logger.Info("OpenTelemetry initialized",
 			"service", cfg.serviceName,
@@ -377,6 +426,10 @@ func Initialize(logger *slog.Logger, serviceName string) {
 func Shutdown(ctx context.Context) {
 	mu.Lock()
 	defer mu.Unlock()
+	if loggerProvider != nil {
+		_ = loggerProvider.Shutdown(ctx)
+		loggerProvider = nil
+	}
 	if meterProvider != nil {
 		_ = meterProvider.Shutdown(ctx)
 		meterProvider = nil
@@ -391,5 +444,124 @@ func Shutdown(ctx context.Context) {
 func Enabled() bool {
 	mu.Lock()
 	defer mu.Unlock()
-	return tracerProvider != nil || meterProvider != nil
+	return tracerProvider != nil || meterProvider != nil || loggerProvider != nil
+}
+
+// fanoutHandler broadcasts each slog record to several handlers, so the app's
+// existing stdout logs also flow to the OTLP logs pipeline.
+type fanoutHandler struct{ handlers []slog.Handler }
+
+func (f fanoutHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	for _, h := range f.handlers {
+		if h.Enabled(ctx, level) {
+			return true
+		}
+	}
+	return false
+}
+
+func (f fanoutHandler) Handle(ctx context.Context, r slog.Record) error {
+	var firstErr error
+	for _, h := range f.handlers {
+		if h.Enabled(ctx, r.Level) {
+			if err := h.Handle(ctx, r.Clone()); err != nil && firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
+}
+
+func (f fanoutHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	next := make([]slog.Handler, len(f.handlers))
+	for i, h := range f.handlers {
+		next[i] = h.WithAttrs(attrs)
+	}
+	return fanoutHandler{handlers: next}
+}
+
+func (f fanoutHandler) WithGroup(name string) slog.Handler {
+	next := make([]slog.Handler, len(f.handlers))
+	for i, h := range f.handlers {
+		next[i] = h.WithGroup(name)
+	}
+	return fanoutHandler{handlers: next}
+}
+
+// WrapSlogHandler returns base unchanged when OTLP logs export is not enabled;
+// otherwise a handler that fans records out to both base (stdout) and the OTLP
+// logs pipeline, so gateway logs appear in Statsig Logs and not only Traces.
+func WrapSlogHandler(base slog.Handler, serviceName string) slog.Handler {
+	mu.Lock()
+	lp := loggerProvider
+	mu.Unlock()
+	if lp == nil {
+		return base
+	}
+	bridge := &otelLogHandler{logger: lp.Logger(serviceName)}
+	return fanoutHandler{handlers: []slog.Handler{base, bridge}}
+}
+
+// otelLogHandler is a minimal slog.Handler that emits records to the OTLP logs
+// pipeline via the OTel log API. Hand-written to avoid the contrib otelslog
+// bridge, whose current release requires a newer Go toolchain than the proxy.
+type otelLogHandler struct {
+	logger otellog.Logger
+	attrs  []otellog.KeyValue
+	group  string
+}
+
+func (h *otelLogHandler) Enabled(context.Context, slog.Level) bool { return true }
+
+func (h *otelLogHandler) Handle(ctx context.Context, r slog.Record) error {
+	var rec otellog.Record
+	rec.SetTimestamp(r.Time)
+	rec.SetBody(otellog.StringValue(r.Message))
+	rec.SetSeverity(slogToOtelSeverity(r.Level))
+	if len(h.attrs) > 0 {
+		rec.AddAttributes(h.attrs...)
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		rec.AddAttributes(slogAttrToKV(h.group, a))
+		return true
+	})
+	h.logger.Emit(ctx, rec)
+	return nil
+}
+
+func (h *otelLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	next := append([]otellog.KeyValue{}, h.attrs...)
+	for _, a := range attrs {
+		next = append(next, slogAttrToKV(h.group, a))
+	}
+	return &otelLogHandler{logger: h.logger, attrs: next, group: h.group}
+}
+
+func (h *otelLogHandler) WithGroup(name string) slog.Handler {
+	g := name
+	if h.group != "" {
+		g = h.group + "." + name
+	}
+	return &otelLogHandler{logger: h.logger, attrs: h.attrs, group: g}
+}
+
+func slogToOtelSeverity(l slog.Level) otellog.Severity {
+	switch {
+	case l >= slog.LevelError:
+		return otellog.SeverityError
+	case l >= slog.LevelWarn:
+		return otellog.SeverityWarn
+	case l >= slog.LevelInfo:
+		return otellog.SeverityInfo
+	default:
+		return otellog.SeverityDebug
+	}
+}
+
+func slogAttrToKV(group string, a slog.Attr) otellog.KeyValue {
+	key := a.Key
+	if group != "" {
+		key = group + "." + key
+	}
+	return otellog.String(key, a.Value.String())
 }
