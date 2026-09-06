@@ -1740,6 +1740,18 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 		logger.Info("Admin dashboard: ENABLED")
 	}
 
+	// CompliWise api sync endpoints — mounted unconditionally (independent of the
+	// admin dashboard / OAuth), guarded only by the shared admin secret. Lets the
+	// CompliWise api push/revoke keys + org config so portal keys reach the gateway.
+	{
+		var syncKeyStore *apikeys.Store
+		if s, ok := globalAPIKeyStore.(*apikeys.Store); ok {
+			syncKeyStore = s
+		}
+		admin.RegisterSyncRoutes(r, admin.Deps{Logger: logger, YAMLConfig: yamlConfig, APIKeyStore: syncKeyStore})
+		logger.Info("CompliWise api sync endpoints: ENABLED")
+	}
+
 	// Register routes for all providers centrally
 	for name, provider := range globalProviderManager.GetAllProviders() {
 		// Direct provider routes

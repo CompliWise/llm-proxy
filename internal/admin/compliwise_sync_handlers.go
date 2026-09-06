@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -10,6 +11,37 @@ import (
 	"github.com/Instawork/llm-proxy/internal/apikeys"
 	"github.com/gorilla/mux"
 )
+
+// syncSecretMiddleware guards the CompliWise api sync endpoints using ONLY the
+// shared admin secret from the environment. It is deliberately independent of
+// the admin dashboard authenticator (Google OAuth / sessions), so the sync
+// routes work even when the admin dashboard is disabled or unconfigured.
+func syncSecretMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodOptions {
+			next.ServeHTTP(w, r)
+			return
+		}
+		want := strings.TrimSpace(os.Getenv("AI_GATEWAY_ADMIN_SYNC_SECRET"))
+		got := strings.TrimSpace(r.Header.Get(headerAdminSecret))
+		if want == "" || got == "" || subtle.ConstantTimeCompare([]byte(got), []byte(want)) != 1 {
+			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// RegisterSyncRoutes mounts the CompliWise api key/config sync endpoints on r,
+// independent of the admin dashboard. Call it unconditionally at startup.
+func RegisterSyncRoutes(r *mux.Router, deps Deps) {
+	h := newHandler(deps, nil)
+	sub := r.PathPrefix("/admin/api").Subrouter()
+	sub.Use(syncSecretMiddleware)
+	sub.HandleFunc("/compliwise-keys/{keyId}", h.handleUpsertCompliwiseKey).Methods(http.MethodPost, http.MethodOptions)
+	sub.HandleFunc("/compliwise-keys/{keyId}", h.handleRevokeCompliwiseKey).Methods(http.MethodDelete, http.MethodOptions)
+	sub.HandleFunc("/org-config/{organizationId}", h.handleUpsertOrgConfig).Methods(http.MethodPost, http.MethodOptions)
+}
 
 // compliwiseKeySyncRequest is the JSON body the CompliWise api POSTs to
 // /admin/api/compliwise-keys/{keyId}. It mirrors the api's ProxyKeySyncPayload.

@@ -31,25 +31,6 @@ func (a *authenticator) portalBFFMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-// requireSyncSecret guards the CompliWise api sync endpoints. Unlike the portal
-// BFF middleware it needs ONLY the shared admin secret (no portal-user headers),
-// since the api posts key/config sync with just X-AI-Gateway-Admin-Secret.
-func (a *authenticator) requireSyncSecret(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodOptions {
-			next.ServeHTTP(w, r)
-			return
-		}
-		got := strings.TrimSpace(r.Header.Get(headerAdminSecret))
-		if a.portalAdminSecret == "" || got == "" ||
-			subtle.ConstantTimeCompare([]byte(got), []byte(a.portalAdminSecret)) != 1 {
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized"})
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (a *authenticator) authenticatePortalBFF(r *http.Request) (*UserResponse, bool) {
 	if a.portalAdminSecret == "" {
 		return nil, false

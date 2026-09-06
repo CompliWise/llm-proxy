@@ -66,16 +66,6 @@ func RegisterRoutes(r *mux.Router, deps Deps) {
 	publicAPI.Use(newShareRateLimiter(1, 10).middleware)
 	publicAPI.HandleFunc("/share/{id}", h.handleGetShare).Methods(http.MethodGet, http.MethodOptions)
 
-	// CompliWise api sync endpoints — guarded ONLY by the shared admin secret
-	// (X-AI-Gateway-Admin-Secret), with no portal-user session. The CompliWise
-	// api pushes/revokes gateway keys and org config here so keys minted in the
-	// portal resolve through the normal request pipeline.
-	sync := adminRouter.PathPrefix("/api").Subrouter()
-	sync.Use(auth.requireSyncSecret)
-	sync.HandleFunc("/compliwise-keys/{keyId}", h.handleUpsertCompliwiseKey).Methods(http.MethodPost, http.MethodOptions)
-	sync.HandleFunc("/compliwise-keys/{keyId}", h.handleRevokeCompliwiseKey).Methods(http.MethodDelete, http.MethodOptions)
-	sync.HandleFunc("/org-config/{organizationId}", h.handleUpsertOrgConfig).Methods(http.MethodPost, http.MethodOptions)
-
 	api := adminRouter.PathPrefix("/api").Subrouter()
 	api.Use(h.corsMiddleware)
 	api.Use(auth.portalBFFMiddleware)
