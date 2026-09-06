@@ -13,7 +13,9 @@ features:
     backend: redis
   pii_redact:
     enabled: true
-    fail_mode: "closed"
+    # Presidio analyzer is not deployed yet (deferred). Fail OPEN so requests
+    # pass through instead of 503'ing; flip back to "closed" once Presidio is up.
+    fail_mode: "open"
   admin_dashboard:
     enabled: true
   history:
