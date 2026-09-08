@@ -109,6 +109,16 @@ func newAuthenticator(logger *slog.Logger, adminCfg config.AdminDashboardConfig,
 			logger.Warn("admin auth: Google OAuth not configured; dev bypass login only")
 			return auth, nil
 		}
+		// Portal-BFF-only mode: when Google OAuth isn't configured but the portal
+		// admin secret IS, still mount the admin JSON API — authed solely by the
+		// X-AI-Gateway-Admin-Secret the CompliWise api relays. The browser OAuth
+		// login is unavailable (and no unauthenticated dev-login is exposed, since
+		// DevBypassLogin is false), but the api-driven portal tabs (keys, providers,
+		// policies, content filters, etc.) work without a Google OAuth client.
+		if auth.portalAdminSecret != "" {
+			logger.Warn("admin auth: Google OAuth not configured; portal-BFF (admin-secret) auth only")
+			return auth, nil
+		}
 		return nil, fmt.Errorf("LLM_PROXY_ADMIN_GOOGLE_CLIENT_ID and LLM_PROXY_ADMIN_GOOGLE_CLIENT_SECRET are required")
 	}
 
