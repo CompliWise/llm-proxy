@@ -1284,6 +1284,11 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 	otel.Initialize(logger, "llm-proxy")
 	statsig.Initialize(logger, "llm-proxy")
 
+	// Fan the base logger out to the OTLP logs pipeline so gateway request logs
+	// land in Statsig Logs (not only Traces). No-op when logs export is off.
+	logger = slog.New(otel.WrapSlogHandler(logger.Handler(), "llm-proxy"))
+	slog.SetDefault(logger)
+
 	// Log configuration
 	yamlConfig.LogConfiguration(logger)
 
@@ -1733,6 +1738,18 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 			AdminRollupStore:   globalAdminRollupStore,
 		})
 		logger.Info("Admin dashboard: ENABLED")
+	}
+
+	// CompliWise api sync endpoints — mounted unconditionally (independent of the
+	// admin dashboard / OAuth), guarded only by the shared admin secret. Lets the
+	// CompliWise api push/revoke keys + org config so portal keys reach the gateway.
+	{
+		var syncKeyStore *apikeys.Store
+		if s, ok := globalAPIKeyStore.(*apikeys.Store); ok {
+			syncKeyStore = s
+		}
+		admin.RegisterSyncRoutes(r, admin.Deps{Logger: logger, YAMLConfig: yamlConfig, APIKeyStore: syncKeyStore})
+		logger.Info("CompliWise api sync endpoints: ENABLED")
 	}
 
 	// Register routes for all providers centrally

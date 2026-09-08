@@ -13,6 +13,9 @@ features:
     backend: redis
   pii_redact:
     enabled: true
+    # Presidio analyzer is deployed on the gateway VM (2026-09-08). Fail CLOSED —
+    # never send PII to the upstream LLM; if Presidio is unreachable the request
+    # 503s rather than leaking (strict compliance, per Murshid on PR #2).
     fail_mode: "closed"
   admin_dashboard:
     enabled: true
