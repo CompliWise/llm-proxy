@@ -66,6 +66,10 @@ func NewGeminiProxy(opts ...ProxyOptions) *GeminiProxy {
 
 	// Add custom response modifier for streaming support
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		// Strip the upstream provider's CORS headers so our CORS middleware stays
+		// the single source (a duplicate Access-Control-Allow-Origin breaks browsers).
+		stripUpstreamCORS(resp.Header)
+
 		// Handle streaming responses
 		if geminiProxy.isStreamingResponse(resp) {
 			log.Printf("Detected streaming response from Gemini")
