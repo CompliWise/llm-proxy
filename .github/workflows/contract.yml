@@ -1,0 +1,46 @@
+name: Contract
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CONTRACT_BASE_URL: https://ai-gateway.dev.compliwise.io
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Wait for deployed llm-proxy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS "$CONTRACT_BASE_URL/health" >/dev/null; then
+              echo "Deployed llm-proxy is reachable"
+              break
+            fi
+            sleep 2
+          done
+          curl -fsS "$CONTRACT_BASE_URL/health" || {
+            echo "::error::Deployed llm-proxy not reachable at $CONTRACT_BASE_URL"
+            exit 1
+          }
+
+      - name: Run Schemathesis Tests
+        uses: schemathesis/action@1f15936316e0742005bf69657b5909ac68f04cb3 # v2.1.0
+        with:
+          schema: "./openapi.yml"
+          base-url: ${{ env.CONTRACT_BASE_URL }}
+          version: "latest"
+          config-file: "schemathesis.toml"

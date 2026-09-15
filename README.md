@@ -663,6 +663,40 @@ attribution when the response body does not echo back a model name (the
 middleware falls back to `ExtractRequestModelAndMessages`, which pulls the
 model from the request URL).
 
+## Contract testing
+
+Schemathesis contract tests run in CI via [`.github/workflows/contract.yml`](.github/workflows/contract.yml) (same pattern as [`CompliWise/capture`](https://github.com/CompliWise/capture)). Config: [`schemathesis.toml`](schemathesis.toml). OpenAPI contract: [`openapi.yml`](openapi.yml).
+
+compliwise-api contract tests live in [`CompliWise/compliwise-app`](https://github.com/CompliWise/compliwise-app).
+
+### CI
+
+Contract CI tests the **deployed dev gateway** at `https://ai-gateway.dev.compliwise.io` (no docker compose or local build on the runner). Schemathesis runs against `openapi.yml` with `schemathesis.toml` (`unexpected-methods = []` skips unsupported-method coverage).
+
+### Local run
+
+**Option A — match CI (dev deploy):**
+
+```bash
+uvx schemathesis run openapi.yml --url https://ai-gateway.dev.compliwise.io --config-file schemathesis.toml
+```
+
+**Option B — local stack:**
+
+```bash
+docker compose up -d dynamodb redis
+GOFLAGS=-buildvcs=false go build -buildvcs=false -o llm-proxy ./cmd/llm-proxy
+AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_ENDPOINT_URL=http://127.0.0.1:8000 PORT=9002 ./llm-proxy
+uvx schemathesis run openapi.yml --url http://localhost:9002 --config-file schemathesis.toml
+```
+
+**Option C — full dev stack (hot reload):**
+
+```bash
+make docker-compose-dev
+uvx schemathesis run openapi.yml --url http://localhost:9002 --config-file schemathesis.toml
+```
+
 ## Dependencies
 
 - [Gorilla Mux](https://github.com/gorilla/mux) - HTTP router and URL matcher
