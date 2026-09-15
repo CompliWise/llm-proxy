@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 
 [build]
   # CGO_ENABLED=0 is set in docker-compose so this builds on alpine.
-  cmd = "go build -o ./tmp/main ./cmd/llm-proxy"
+  cmd = "go build -buildvcs=false -o ./tmp/main ./cmd/llm-proxy"
   bin = "./tmp/main"
   include_ext = ["go", "yml", "yaml"]
   exclude_dir = ["web", "logs", "tmp", "bin", "build", ".git", "node_modules", ".cursor"]
