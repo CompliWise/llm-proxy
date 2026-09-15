@@ -8,11 +8,11 @@ import (
 func TestRecorderAggregates(t *testing.T) {
 	r := NewRecorder()
 
-	r.RecordRedaction("openai", "iw:abcdefgh999", map[string]int{"EMAIL_ADDRESS": 2, "PHONE_NUMBER": 1}, 1000, 5*time.Millisecond, OutcomeOK)
-	r.RecordRedaction("openai", "iw:abcdefgh999", nil, 500, 2*time.Millisecond, OutcomeOK)
-	r.RecordRedaction("anthropic", "iw:zzzzzzzz0001", map[string]int{"EMAIL_ADDRESS": 1}, 800, 3*time.Millisecond, OutcomeOK)
-	r.RecordRedaction("gemini", "iw:zzzzzzzz0001", nil, 0, 0, OutcomeFailOpen)
-	r.RecordRedaction("openai", "iw:abcdefgh999", nil, 2_000_000, 0, OutcomeOversize)
+	r.RecordRedaction("openai", "iw:abcdefgh999", "", map[string]int{"EMAIL_ADDRESS": 2, "PHONE_NUMBER": 1}, 1000, 5*time.Millisecond, OutcomeOK)
+	r.RecordRedaction("openai", "iw:abcdefgh999", "", nil, 500, 2*time.Millisecond, OutcomeOK)
+	r.RecordRedaction("anthropic", "iw:zzzzzzzz0001", "", map[string]int{"EMAIL_ADDRESS": 1}, 800, 3*time.Millisecond, OutcomeOK)
+	r.RecordRedaction("gemini", "iw:zzzzzzzz0001", "", nil, 0, 0, OutcomeFailOpen)
+	r.RecordRedaction("openai", "iw:abcdefgh999", "", nil, 2_000_000, 0, OutcomeOversize)
 
 	snap := r.Snapshot()
 
@@ -56,7 +56,7 @@ func TestRecorderAggregates(t *testing.T) {
 func TestRecorderRingBufferBounded(t *testing.T) {
 	r := NewRecorder()
 	for i := 0; i < MaxRecentEvents+25; i++ {
-		r.RecordRedaction("openai", "k", map[string]int{"EMAIL_ADDRESS": 1}, 10, time.Millisecond, OutcomeOK)
+		r.RecordRedaction("openai", "k", "", map[string]int{"EMAIL_ADDRESS": 1}, 10, time.Millisecond, OutcomeOK)
 	}
 	recent := r.Snapshot()["recent"].([]recentEntry)
 	if len(recent) != MaxRecentEvents {
@@ -66,7 +66,7 @@ func TestRecorderRingBufferBounded(t *testing.T) {
 
 func TestNilRecorderSafe(t *testing.T) {
 	var r *Recorder
-	r.RecordRedaction("openai", "k", nil, 0, 0, OutcomeOK)
+	r.RecordRedaction("openai", "k", "", nil, 0, 0, OutcomeOK)
 	if snap := r.Snapshot(); snap["available"].(bool) {
 		t.Fatal("nil recorder should report available=false")
 	}

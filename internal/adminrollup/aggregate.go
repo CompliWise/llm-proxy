@@ -156,7 +156,7 @@ func flattenCostByKey(h map[string]float64) map[string]float64 {
 	return out
 }
 
-func costDataFromAggregates(totals map[string]float64, byProvider, byKey, byUser map[string]float64, caps TopNCaps) map[string]interface{} {
+func costDataFromAggregates(totals map[string]float64, byProvider, byKey, byUser, byOrg map[string]float64, caps TopNCaps) map[string]interface{} {
 	provRows := buildDimRows(byProvider, nil)
 
 	byProviderOut := make([]map[string]interface{}, 0, len(provRows))
@@ -203,6 +203,9 @@ func costDataFromAggregates(totals map[string]float64, byProvider, byKey, byUser
 		topUsers, otherSpend := topNWithOther(flattenCostByKey(byUser), caps.ByUser)
 		data["by_user"] = costScopeMapFromRows(userRows, topUsers, otherSpend, "user")
 	}
+	if len(byOrg) > 0 {
+		data["by_org"] = scopeMapFromDim(byOrg)
+	}
 	return data
 }
 
@@ -236,7 +239,7 @@ func costScalarsFromTotals(totals map[string]float64) map[string]interface{} {
 	}
 }
 
-func usageDataFromAggregates(totals map[string]float64, byModel, byProvider, byKey, byUser map[string]float64, caps TopNCaps) map[string]interface{} {
+func usageDataFromAggregates(totals map[string]float64, byModel, byProvider, byKey, byUser, byOrg map[string]float64, caps TopNCaps) map[string]interface{} {
 	data := usageScalarsFromTotals(totals)
 	if len(byModel) > 0 {
 		data["by_model"] = scopeMapFromDim(byModel)
@@ -253,6 +256,9 @@ func usageDataFromAggregates(totals map[string]float64, byModel, byProvider, byK
 		userRows := buildDimRows(byUser, nil)
 		top, other := topNWithOther(flattenScopeDim(byUser), caps.ByUser)
 		data["by_user"] = usageScopeMapFromRows(userRows, top, other, "user")
+	}
+	if len(byOrg) > 0 {
+		data["by_org"] = scopeMapFromDim(byOrg)
 	}
 	return data
 }
@@ -334,7 +340,7 @@ func scopeMapFromNames(top []nameVal, other float64, kind string) map[string]map
 	return out
 }
 
-func piiDataFromAggregates(totals map[string]float64, byEntity, byProvider, byKey map[string]float64, caps TopNCaps) map[string]interface{} {
+func piiDataFromAggregates(totals map[string]float64, byEntity, byProvider, byKey, byOrg map[string]float64, caps TopNCaps) map[string]interface{} {
 	scanned := totals["requests_scanned"]
 	withPII := totals["requests_with_pii"]
 	failOpen := totals["fail_open"]
@@ -369,7 +375,7 @@ func piiDataFromAggregates(totals map[string]float64, byEntity, byProvider, byKe
 		topKeysOut = append(topKeysOut, nameVal{Name: "other_key", Val: otherKeys})
 	}
 
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"requests_scanned":  int64(scanned),
 		"requests_with_pii": int64(withPII),
 		"entities_total":    int64(totals["entities_total"]),
@@ -381,6 +387,10 @@ func piiDataFromAggregates(totals map[string]float64, byEntity, byProvider, byKe
 		"by_provider":       kvFromNameVals(byProvOut),
 		"top_keys":          kvFromNameVals(topKeysOut),
 	}
+	if len(byOrg) > 0 {
+		out["by_org"] = scopeMapFromDim(byOrg)
+	}
+	return out
 }
 
 func idGateDataFromAggregates(totals map[string]float64, byEntity, byProvider, byKey map[string]float64, caps TopNCaps) map[string]interface{} {
@@ -430,11 +440,11 @@ func kvFromNameVals(vals []nameVal) []map[string]interface{} {
 
 func modelStatusDataFromAggregates(
 	totals map[string]float64,
-	byRetired, byDeprecated, byUnknown map[string]float64,
+	byRetired, byDeprecated, byUnknown, byOrg map[string]float64,
 	_ TopNCaps,
 ) map[string]interface{} {
 	const limit = 100
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"retired_total":    int64(totals["retired_total"]),
 		"deprecated_total": int64(totals["deprecated_total"]),
 		"unknown_total":    int64(totals["unknown_total"]),
@@ -442,6 +452,10 @@ func modelStatusDataFromAggregates(
 		"by_deprecated":    kvFromNameVals(topNMap(byDeprecated, limit)),
 		"by_unknown":       kvFromNameVals(topNMap(byUnknown, limit)),
 	}
+	if len(byOrg) > 0 {
+		out["by_org"] = scopeMapFromDim(byOrg)
+	}
+	return out
 }
 
 func topNMap(m map[string]float64, n int) []nameVal {
@@ -482,7 +496,7 @@ func circuitActivityDataFromAggregates(totals map[string]float64, byProvider, by
 	}
 }
 
-func rateLimitDataFromAggregates(totals map[string]float64, byProvider, byReason map[string]float64) map[string]interface{} {
+func rateLimitDataFromAggregates(totals map[string]float64, byProvider, byReason, byOrg map[string]float64) map[string]interface{} {
 	byProvOut := make(map[string]int64, len(byProvider))
 	for k, v := range byProvider {
 		byProvOut[k] = int64(v)
@@ -491,13 +505,17 @@ func rateLimitDataFromAggregates(totals map[string]float64, byProvider, byReason
 	for k, v := range byReason {
 		byReasonOut[k] = int64(v)
 	}
-	return map[string]interface{}{
+	out := map[string]interface{}{
 		"requests_total":   int64(totals["requests_total"]),
 		"requests_allowed": int64(totals["requests_allowed"]),
 		"requests_blocked": int64(totals["requests_blocked"]),
 		"by_provider":      byProvOut,
 		"by_reason":        byReasonOut,
 	}
+	if len(byOrg) > 0 {
+		out["by_org"] = scopeMapFromDim(byOrg)
+	}
+	return out
 }
 
 // hourlyRowFromTotals maps raw Redis hourly hash fields to the scalar names

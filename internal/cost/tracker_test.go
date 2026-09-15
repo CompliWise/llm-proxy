@@ -61,7 +61,7 @@ func TestCostTracker_TrackRequest_Sync(t *testing.T) {
 		OutputTokens: 50,
 	}
 
-	err := ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "")
+	err := ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "", "")
 	assert.NoError(t, err)
 
 	records := mock.Records()
@@ -98,7 +98,7 @@ func TestCostTracker_TrackRequest_Async(t *testing.T) {
 		OutputTokens: 50,
 	}
 
-	err := ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "")
+	err := ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "", "")
 	assert.NoError(t, err)
 
 	// Poll for the async worker to drain the queue rather than sleeping
@@ -117,24 +117,24 @@ func TestCostTracker_TrackRequest_Async(t *testing.T) {
 type recordingStats struct {
 	mu    sync.Mutex
 	calls []struct {
-		provider, keyID, userID, model          string
+		provider, keyID, userID, model, orgID   string
 		spendUSD, inputSpendUSD, outputSpendUSD float64
 		inputTokens, outputTokens               int
 	}
 }
 
 func (r *recordingStats) RecordRequest(
-	provider, keyID, userID, model string,
+	provider, keyID, userID, model, orgID string,
 	spendUSD, inputSpendUSD, outputSpendUSD float64,
 	inputTokens, outputTokens int,
 ) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.calls = append(r.calls, struct {
-		provider, keyID, userID, model          string
+		provider, keyID, userID, model, orgID   string
 		spendUSD, inputSpendUSD, outputSpendUSD float64
 		inputTokens, outputTokens               int
-	}{provider, keyID, userID, model, spendUSD, inputSpendUSD, outputSpendUSD, inputTokens, outputTokens})
+	}{provider, keyID, userID, model, orgID, spendUSD, inputSpendUSD, outputSpendUSD, inputTokens, outputTokens})
 }
 
 func TestCostTracker_StatsRecorder(t *testing.T) {
@@ -154,7 +154,7 @@ func TestCostTracker_StatsRecorder(t *testing.T) {
 		OutputTokens: 50,
 	}
 
-	require.NoError(t, ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "iw:abcdefgh999"))
+	require.NoError(t, ct.TrackRequest(meta, "user1", "127.0.0.1", "/v1/chat", "iw:abcdefgh999", ""))
 	stats.mu.Lock()
 	defer stats.mu.Unlock()
 	require.Len(t, stats.calls, 1)

@@ -128,6 +128,68 @@ func MergeSnapInt64Map(snap map[string]interface{}, field string, local map[stri
 	snap[field] = MergeInt64Maps(existing, local)
 }
 
+// DimMapFromSnap coerces a snapshot dimension field (member -> {field: value})
+// into map[string]map[string]float64, tolerating the in-process representation
+// (map[string]map[string]float64) and the JSON-ish forms that a Redis-rollup
+// overlay or round-trip can produce. Returns nil for an absent/unrecognized
+// field.
+func DimMapFromSnap(raw interface{}) map[string]map[string]float64 {
+	switch m := raw.(type) {
+	case map[string]map[string]float64:
+		return m
+	case map[string]interface{}:
+		out := make(map[string]map[string]float64, len(m))
+		for member, fv := range m {
+			out[member] = fieldMapFromAny(fv)
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func fieldMapFromAny(v interface{}) map[string]float64 {
+	switch fv := v.(type) {
+	case map[string]float64:
+		return fv
+	case map[string]interface{}:
+		out := make(map[string]float64, len(fv))
+		for k, x := range fv {
+			out[k] = SnapFloat64(x)
+		}
+		return out
+	default:
+		return map[string]float64{}
+	}
+}
+
+// MergeSnapDimMap merges a local member->{field:value} dimension map into
+// snap[field], taking the per-field max. Used for the by_org dimension so an
+// instance's just-recorded per-org totals aren't dropped by a MergeToday
+// overlay before its debounced delta reaches Redis.
+func MergeSnapDimMap(snap map[string]interface{}, field string, local map[string]map[string]float64) {
+	if snap == nil || len(local) == 0 {
+		return
+	}
+	merged := DimMapFromSnap(snap[field])
+	if merged == nil {
+		merged = make(map[string]map[string]float64, len(local))
+	}
+	for member, fields := range local {
+		existing := merged[member]
+		if existing == nil {
+			existing = make(map[string]float64, len(fields))
+			merged[member] = existing
+		}
+		for f, v := range fields {
+			if v > existing[f] {
+				existing[f] = v
+			}
+		}
+	}
+	snap[field] = merged
+}
+
 // PIIDetectionRate computes detection rate from rollup totals.
 func PIIDetectionRate(scanned, withPII, failOpen, failClosed, oversize int64) float64 {
 	clean := scanned - failOpen - failClosed - oversize

@@ -191,12 +191,34 @@ type APIKey struct {
 	UpstreamKind string `dynamodbav:"upstream_kind,omitempty"`
 	// OwnerEmail identifies the viewer who owns a personal key.
 	OwnerEmail string `dynamodbav:"owner_email,omitempty"`
+	// OrgID identifies the owning CompliWise organization (tenant). Populated
+	// from the CompliWise key sync; used to segregate metrics, rate limits, and
+	// admin monitoring by organization. Legacy keys may carry it only in
+	// Tags["organization_id"] — read it via OrganizationID() for that fallback.
+	OrgID string `dynamodbav:"org_id,omitempty"`
 	// MonthlyCostLimit is the calendar-month cost cap in cents (0 = unlimited).
 	MonthlyCostLimit int64 `dynamodbav:"monthly_cost_limit,omitempty"`
 	// FirstRequestAt is set once when the proxy observes the first tracked LLM
 	// request for this key (cost/usage path). Used by the admin UI to detect
 	// keys that have never been wired up.
 	FirstRequestAt *time.Time `dynamodbav:"first_request_at,omitempty"`
+}
+
+// OrganizationID returns the owning organization id, falling back to the legacy
+// Tags["organization_id"] marker when the dedicated OrgID attribute is absent
+// (keys synced before org_id became a first-class field). Returns "" when the
+// key has no organization (unscoped/legacy).
+func (k *APIKey) OrganizationID() string {
+	if k == nil {
+		return ""
+	}
+	if k.OrgID != "" {
+		return k.OrgID
+	}
+	if k.Tags != nil {
+		return k.Tags["organization_id"]
+	}
+	return ""
 }
 
 // ErrOwnerKeyExists is returned when an owner already has a key for a provider.

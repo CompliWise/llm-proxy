@@ -69,7 +69,7 @@ func TestDynamoDBTransportIntegration(t *testing.T) {
 	}
 
 	// Track a test request
-	err = tracker.TrackRequest(metadata, "test-user", "192.168.1.1", "/v1/chat/completions", "")
+	err = tracker.TrackRequest(metadata, "test-user", "192.168.1.1", "/v1/chat/completions", "", "")
 	if err != nil {
 		t.Errorf("Failed to track request: %v", err)
 	}

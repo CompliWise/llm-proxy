@@ -19,7 +19,7 @@ func TestRecorder_EmitsHistoryOnRedaction(t *testing.T) {
 	})
 	r := NewRecorder()
 	r.BindHistory(s, history.StreamPII)
-	r.RecordRedaction("openai", "iw:abc", map[string]int{"EMAIL_ADDRESS": 1}, 100, time.Millisecond, OutcomeOK)
+	r.RecordRedaction("openai", "iw:abc", "", map[string]int{"EMAIL_ADDRESS": 1}, 100, time.Millisecond, OutcomeOK)
 	require.NoError(t, s.Close())
 	require.Len(t, w.Chunks, 1)
 	require.Equal(t, history.StreamPII, w.Chunks[0].Stream)

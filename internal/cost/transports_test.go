@@ -335,7 +335,7 @@ func TestCostTracker_TrackRequest_TransportError_Bubbles(t *testing.T) {
 	})
 	err := ct.TrackRequest(&providers.LLMResponseMetadata{
 		Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-	}, "u", "ip", "/e", "")
+	}, "u", "ip", "/e", "", "")
 	assert.Error(t, err)
 }
 
@@ -346,7 +346,7 @@ func TestCostTracker_TrackRequest_NoPricing_LogsAndSucceeds(t *testing.T) {
 	err := ct.TrackRequest(&providers.LLMResponseMetadata{
 		Provider: "unknown-provider", Model: "no-such-model",
 		InputTokens: 1, OutputTokens: 2, TotalTokens: 3,
-	}, "u", "", "/e", "")
+	}, "u", "", "/e", "", "")
 	require.NoError(t, err)
 	records := mock.Records()
 	require.Len(t, records, 1)
@@ -363,7 +363,7 @@ func TestCostTracker_TrackRequest_FuzzyMatch(t *testing.T) {
 	})
 	err := ct.TrackRequest(&providers.LLMResponseMetadata{
 		Provider: "openai", Model: "gpt-4ox", InputTokens: 1000, OutputTokens: 1000,
-	}, "u", "", "/e", "")
+	}, "u", "", "/e", "", "")
 	require.NoError(t, err)
 	records := mock.Records()
 	require.Len(t, records, 1)
@@ -395,7 +395,7 @@ func TestCostTracker_AsyncQueueFull_FallsBackToSync(t *testing.T) {
 		// queue-full case as a hard error to the caller.
 		require.NoError(t, ct.TrackRequest(&providers.LLMResponseMetadata{
 			Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-		}, "u", "", "/e", ""))
+		}, "u", "", "/e", "", ""))
 	}
 
 	// stop workers and verify all records made it through despite the
@@ -459,7 +459,7 @@ func TestCostTracker_AsyncFlushTickerProcessesRecords(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		require.NoError(t, ct.TrackRequest(&providers.LLMResponseMetadata{
 			Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-		}, "u", "", "/e", ""))
+		}, "u", "", "/e", "", ""))
 	}
 
 	// Poll for the worker to drain via either of its case branches
@@ -535,7 +535,7 @@ func TestProcessRemainingRecords_QueueClosed(t *testing.T) {
 	})
 	require.NoError(t, ct.TrackRequest(&providers.LLMResponseMetadata{
 		Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-	}, "u", "", "/e", ""))
+	}, "u", "", "/e", "", ""))
 
 	// stopping closes the queue and forces processRemainingRecords path
 	ct.StopAsyncWorkers()
@@ -571,7 +571,7 @@ func TestFlushQueuedRecords_DirectExercisesBothPaths(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		require.NoError(t, ct.TrackRequest(&providers.LLMResponseMetadata{
 			Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-		}, "u", "", "/e", ""))
+		}, "u", "", "/e", "", ""))
 	}
 	// Direct call: covers the loop body once records are present and again
 	// after they've all been drained (default branch).

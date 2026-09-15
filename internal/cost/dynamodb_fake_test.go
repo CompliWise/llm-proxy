@@ -96,5 +96,5 @@ func TestNewDynamoDBBasedCostTracker_FakeServer(t *testing.T) {
 	})
 	require.NoError(t, ct.TrackRequest(&providers.LLMResponseMetadata{
 		Provider: "openai", Model: "gpt-4o", InputTokens: 1, OutputTokens: 1,
-	}, "u", "", "/openai/v1/chat/completions", ""))
+	}, "u", "", "/openai/v1/chat/completions", "", ""))
 }

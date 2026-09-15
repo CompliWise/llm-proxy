@@ -51,6 +51,7 @@ type Recorder struct {
 	byEntity   map[string]int64
 	byProvider map[string]int64
 	byKey      map[string]int64
+	byOrg      map[string]*orgPIIStats
 
 	recent  []recentEntry
 	flushed piiFlushed
@@ -65,6 +66,37 @@ type piiFlushed struct {
 	requestsScanned, requestsWithPII, entitiesTotal int64
 	failOpen, failClosed, oversize                  int64
 	byEntity, byProvider, byKey                     map[string]int64
+	byOrg                                           map[string]orgPIIStats
+}
+
+// orgPIIStats holds the per-organization scalar totals needed to org-scope the
+// PII admin summary (mirrors the top-level scalar fields).
+type orgPIIStats struct {
+	RequestsScanned int64
+	RequestsWithPII int64
+	EntitiesTotal   int64
+	FailOpen        int64
+	FailClosed      int64
+	Oversize        int64
+}
+
+func (o orgPIIStats) fields() map[string]float64 {
+	return map[string]float64{
+		"requests_scanned":  float64(o.RequestsScanned),
+		"requests_with_pii": float64(o.RequestsWithPII),
+		"entities_total":    float64(o.EntitiesTotal),
+		"fail_open":         float64(o.FailOpen),
+		"fail_closed":       float64(o.FailClosed),
+		"oversize":          float64(o.Oversize),
+	}
+}
+
+func orgPIIDimMap(m map[string]*orgPIIStats) map[string]map[string]float64 {
+	out := make(map[string]map[string]float64, len(m))
+	for org, v := range m {
+		out[org] = v.fields()
+	}
+	return out
 }
 
 var piiRollupCaps = adminrollup.TopNCaps{ByKey: 100}
@@ -78,6 +110,7 @@ func NewRecorder() *Recorder {
 		byEntity:   make(map[string]int64),
 		byProvider: make(map[string]int64),
 		byKey:      make(map[string]int64),
+		byOrg:      make(map[string]*orgPIIStats),
 	}
 }
 
@@ -102,6 +135,7 @@ func (r *Recorder) maybeRollDay(now time.Time) {
 	r.byEntity = make(map[string]int64)
 	r.byProvider = make(map[string]int64)
 	r.byKey = make(map[string]int64)
+	r.byOrg = make(map[string]*orgPIIStats)
 	r.recent = nil
 }
 
@@ -154,12 +188,15 @@ func (r *Recorder) rollupDataLocked() map[string]interface{} {
 		"by_entity":         topN(r.byEntity, 0),
 		"by_provider":       topN(r.byProvider, 0),
 		"top_keys":          topN(r.byKey, 10),
+		"by_org":            orgPIIDimMap(r.byOrg),
 	}
 }
 
-// RecordRedaction ingests a single redaction outcome.
+// RecordRedaction ingests a single redaction outcome. orgID is the owning
+// organization (empty for unscoped/legacy keys); a blank org records no by_org
+// member so legacy traffic never creates a phantom organization bucket.
 func (r *Recorder) RecordRedaction(
-	provider, keyID string,
+	provider, keyID, orgID string,
 	entityCounts map[string]int,
 	bodyBytes int,
 	duration time.Duration,
@@ -187,13 +224,32 @@ func (r *Recorder) RecordRedaction(
 		r.byKey[keyID]++
 	}
 
+	var org *orgPIIStats
+	if orgID != "" {
+		org = r.byOrg[orgID]
+		if org == nil {
+			org = &orgPIIStats{}
+			r.byOrg[orgID] = org
+		}
+		org.RequestsScanned++
+	}
+
 	switch outcome {
 	case OutcomeFailOpen:
 		r.failOpen++
+		if org != nil {
+			org.FailOpen++
+		}
 	case OutcomeFailClosed:
 		r.failClosed++
+		if org != nil {
+			org.FailClosed++
+		}
 	case OutcomeOversize:
 		r.oversize++
+		if org != nil {
+			org.Oversize++
+		}
 	}
 
 	if entityTotal > 0 {
@@ -201,6 +257,10 @@ func (r *Recorder) RecordRedaction(
 		r.entitiesTotal += int64(entityTotal)
 		for entity, n := range entityCounts {
 			r.byEntity[entity] += int64(n)
+		}
+		if org != nil {
+			org.RequestsWithPII++
+			org.EntitiesTotal += int64(entityTotal)
 		}
 	}
 
@@ -245,9 +305,33 @@ func (r *Recorder) piiDeltaLocked() adminrollup.Delta {
 			"by_entity":   intMapDelta(r.byEntity, r.flushed.byEntity),
 			"by_provider": intMapDelta(r.byProvider, r.flushed.byProvider),
 			"by_key":      intMapDelta(r.byKey, r.flushed.byKey),
+			"by_org":      orgPIIDelta(r.byOrg, r.flushed.byOrg),
 		},
 	}
 	return d
+}
+
+// orgPIIDelta emits per-org field deltas (member|field -> delta) for the by_org
+// dimension, mirroring how the scalar totals are tracked.
+func orgPIIDelta(cur map[string]*orgPIIStats, prev map[string]orgPIIStats) map[string]float64 {
+	out := make(map[string]float64)
+	for org, v := range cur {
+		p := prev[org]
+		addOrgDim(out, org, "requests_scanned", v.RequestsScanned-p.RequestsScanned)
+		addOrgDim(out, org, "requests_with_pii", v.RequestsWithPII-p.RequestsWithPII)
+		addOrgDim(out, org, "entities_total", v.EntitiesTotal-p.EntitiesTotal)
+		addOrgDim(out, org, "fail_open", v.FailOpen-p.FailOpen)
+		addOrgDim(out, org, "fail_closed", v.FailClosed-p.FailClosed)
+		addOrgDim(out, org, "oversize", v.Oversize-p.Oversize)
+	}
+	return out
+}
+
+func addOrgDim(m map[string]float64, org, field string, delta int64) {
+	if delta == 0 {
+		return
+	}
+	m[adminrollup.DimMemberField(org, field)] = float64(delta)
 }
 
 func intMapDelta(cur, prev map[string]int64) map[string]float64 {
@@ -270,6 +354,15 @@ func (r *Recorder) advancePIIFlushedLocked() {
 	r.flushed.byEntity = copyIntMap(r.byEntity)
 	r.flushed.byProvider = copyIntMap(r.byProvider)
 	r.flushed.byKey = copyIntMap(r.byKey)
+	r.flushed.byOrg = copyOrgPIIMap(r.byOrg)
+}
+
+func copyOrgPIIMap(m map[string]*orgPIIStats) map[string]orgPIIStats {
+	out := make(map[string]orgPIIStats, len(m))
+	for k, v := range m {
+		out[k] = *v
+	}
+	return out
 }
 
 func copyIntMap(m map[string]int64) map[string]int64 {
@@ -305,6 +398,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	var requestsScanned, requestsWithPII, entitiesTotal int64
 	var failOpen, failClosed, oversize int64
 	var localByEntity, localByProvider, localByKey map[string]int64
+	var localByOrg map[string]map[string]float64
 	var detectionRate float64
 	if localActive {
 		requestsScanned = r.requestsScanned
@@ -316,6 +410,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		localByEntity = copyIntMap(r.byEntity)
 		localByProvider = copyIntMap(r.byProvider)
 		localByKey = copyIntMap(r.byKey)
+		localByOrg = orgPIIDimMap(r.byOrg)
 		_, detectionRate = r.detectionRateLocked()
 	}
 
@@ -333,6 +428,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		"by_entity":         topN(localByEntity, 0),
 		"by_provider":       topN(localByProvider, 0),
 		"top_keys":          topN(localByKey, 10),
+		"by_org":            localByOrg,
 		"recent":            recent,
 	}
 	r.mu.RUnlock()
@@ -340,6 +436,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	r.MergeToday(adminrollup.MetricPII, today, snap, piiRollupCaps)
 	if localActive {
 		mergeLocalPIIIntoSnap(snap, requestsScanned, requestsWithPII, entitiesTotal, failOpen, failClosed, oversize, localByEntity, localByProvider, localByKey)
+		adminrollup.MergeSnapDimMap(snap, "by_org", localByOrg)
 	}
 	r.MergeHistory(adminrollup.MetricPII, snap)
 	r.MergeHourly(adminrollup.MetricPII, snap)

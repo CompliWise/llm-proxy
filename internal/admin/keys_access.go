@@ -38,6 +38,23 @@ func filterKeysForUser(role adminusers.Role, email string, keys []*apikeys.APIKe
 	return filtered
 }
 
+// filterKeysByOrg narrows a key list to those owned by orgID (via the key's
+// OrganizationID, which falls back to the Tags["organization_id"] marker). A
+// blank orgID returns keys unchanged. Used to keep an org from seeing another
+// org's keys in the admin keys list without adding a DynamoDB GSI.
+func filterKeysByOrg(keys []*apikeys.APIKey, orgID string) []*apikeys.APIKey {
+	if orgID == "" {
+		return keys
+	}
+	filtered := make([]*apikeys.APIKey, 0, len(keys))
+	for _, k := range keys {
+		if k.OrganizationID() == orgID {
+			filtered = append(filtered, k)
+		}
+	}
+	return filtered
+}
+
 func viewerPersonalMonthlyLimitCents(h *handler) int64 {
 	return h.viewerPersonalMonthlyLimit()
 }

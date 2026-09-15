@@ -108,7 +108,7 @@ func TestHandleKeyStats_ViewerOwnKey(t *testing.T) {
 
 	costRec := coststats.NewRecorder()
 	masked := middleware.MaskKeyID(personal.PK)
-	costRec.RecordRequest("openai", masked, "secret-user", "gpt-4o", 0.02, 0.01, 0.01, 20, 10)
+	costRec.RecordRequest("openai", masked, "secret-user", "gpt-4o", "", 0.02, 0.01, 0.01, 20, 10)
 	h.deps.CostSummary = costRec.Snapshot
 	h.deps.PIISummary = pii.NewRecorder().Snapshot
 
@@ -129,7 +129,7 @@ func TestHandleKeyStats_RecentCostBackfillsRequests(t *testing.T) {
 	masked := middleware.MaskKeyID(created.PK)
 	costRec := coststats.NewRecorder()
 	costRec.BindRollup(rollup, adminrollup.NewPersister(rollup, adminrollup.MetricCost))
-	costRec.RecordRequest("openai", masked, "user", "gpt-4o", 0.01, 0.005, 0.005, 10, 5)
+	costRec.RecordRequest("openai", masked, "user", "gpt-4o", "", 0.01, 0.005, 0.005, 10, 5)
 	h.deps.AdminRollupStore = rollup
 	h.deps.CostSummary = costRec.Snapshot
 	h.deps.PIISummary = pii.NewRecorder().Snapshot
@@ -180,7 +180,7 @@ func TestHandleKeyStats_StripsUserIDFromRecentCost(t *testing.T) {
 
 	masked := middleware.MaskKeyID(created.PK)
 	costRec := coststats.NewRecorder()
-	costRec.RecordRequest("openai", created.PK, "secret-user", "gpt-4o", 0.01, 0.005, 0.005, 10, 5)
+	costRec.RecordRequest("openai", created.PK, "secret-user", "gpt-4o", "", 0.01, 0.005, 0.005, 10, 5)
 	h.deps.CostSummary = costRec.Snapshot
 	h.deps.PIISummary = pii.NewRecorder().Snapshot
 
@@ -253,7 +253,7 @@ func TestHandleKeyStats_RollupReadFailureFallsBackToMemory(t *testing.T) {
 
 	costRec := coststats.NewRecorder()
 	masked := middleware.MaskKeyID(created.PK)
-	costRec.RecordRequest("openai", masked, "user", "gpt-4o", 0.05, 0.025, 0.025, 10, 5)
+	costRec.RecordRequest("openai", masked, "user", "gpt-4o", "", 0.05, 0.025, 0.025, 10, 5)
 	h.deps.AdminRollupStore = rollup
 	h.deps.CostSummary = costRec.Snapshot
 	h.deps.PIISummary = pii.NewRecorder().Snapshot

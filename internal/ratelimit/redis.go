@@ -83,6 +83,9 @@ func NewRedisLimiter(cfg *config.YAMLConfig) (RateLimiter, error) {
 
 func (r *redisLimiter) scopeKeys(scope ScopeKeys) []string {
 	keys := []string{"global"}
+	if scope.OrgID != "" {
+		keys = append(keys, "org:"+scope.OrgID)
+	}
 	if scope.Provider != "" {
 		keys = append(keys, "provider:"+scope.Provider)
 	}

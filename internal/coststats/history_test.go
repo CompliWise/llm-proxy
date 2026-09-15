@@ -21,7 +21,7 @@ func TestRecorder_EmitsHistoryOnRequest(t *testing.T) {
 
 	r := NewRecorder()
 	r.BindHistory(s, history.StreamCost)
-	r.RecordRequest("openai", "iw:abc", "chat", "gpt-4o-mini", 0.01, 0.006, 0.004, 100, 50)
+	r.RecordRequest("openai", "iw:abc", "chat", "gpt-4o-mini", "", 0.01, 0.006, 0.004, 100, 50)
 	require.NoError(t, s.Close())
 	require.Len(t, w.Chunks, 1)
 	require.Equal(t, history.StreamCost, w.Chunks[0].Stream)
@@ -38,7 +38,7 @@ func TestRecorder_HistoryUnboundNoChunks(t *testing.T) {
 		GzipSet:    true,
 	})
 	r := NewRecorder()
-	r.RecordRequest("openai", "iw:abc", "chat", "gpt-4o-mini", 0.01, 0.006, 0.004, 100, 50)
+	r.RecordRequest("openai", "iw:abc", "chat", "gpt-4o-mini", "", 0.01, 0.006, 0.004, 100, 50)
 	require.NoError(t, s.Close())
 	require.Empty(t, w.Chunks)
 }
@@ -53,7 +53,7 @@ func TestRecorder_HistoryStreamName(t *testing.T) {
 	})
 	r := NewRecorder()
 	r.BindHistory(s, history.StreamCost)
-	r.RecordRequest("openai", "k", "", "m", 1, 0.6, 0.4, 1, 1)
+	r.RecordRequest("openai", "k", "", "m", "", 1, 0.6, 0.4, 1, 1)
 	require.Len(t, w.Chunks, 1)
 	require.True(t, strings.HasSuffix(w.Chunks[0].ObjectName, ".jsonl"))
 }

@@ -15,7 +15,7 @@ func TestRecorderKeySpendUSD(t *testing.T) {
 	if got := r.KeySpendUSD(context.Background(), "missing"); got != 0 {
 		t.Fatalf("missing key spend = %v", got)
 	}
-	r.RecordRequest("openai", "iw:abc", "", "m", 0.25, 0, 0, 1, 1)
+	r.RecordRequest("openai", "iw:abc", "", "m", "", 0.25, 0, 0, 1, 1)
 	if got := r.KeySpendUSD(context.Background(), "iw:abc"); got != 0.25 {
 		t.Fatalf("key spend = %v want 0.25", got)
 	}
@@ -26,7 +26,7 @@ func TestRecorderKeySpendUSD(t *testing.T) {
 // so the key isn't blocked forever into the new day.
 func TestRecorderKeySpendUSD_StaleDayReturnsZero(t *testing.T) {
 	r := NewRecorder()
-	r.RecordRequest("openai", "iw:abc", "", "m", 5.00, 0, 0, 1, 1)
+	r.RecordRequest("openai", "iw:abc", "", "m", "", 5.00, 0, 0, 1, 1)
 	if got := r.KeySpendUSD(context.Background(), "iw:abc"); got != 5.00 {
 		t.Fatalf("same-day key spend = %v want 5.00", got)
 	}
@@ -82,7 +82,7 @@ func TestRecorderKeySpendUSD_FleetWideFromStore(t *testing.T) {
 
 	// max(fleet, local): a larger local (not yet flushed to Redis) wins so this
 	// instance never under-counts its own just-recorded spend.
-	r.RecordRequest("openai", "iw:fleet", "", "m", 9.00, 0, 0, 1, 1)
+	r.RecordRequest("openai", "iw:fleet", "", "m", "", 9.00, 0, 0, 1, 1)
 	if got := r.KeySpendUSD(context.Background(), "iw:fleet"); got != 9.00 {
 		t.Fatalf("max(fleet,local) = %v want 9.00", got)
 	}
@@ -91,9 +91,9 @@ func TestRecorderKeySpendUSD_FleetWideFromStore(t *testing.T) {
 func TestRecorderAggregatesByKeyAndProvider(t *testing.T) {
 	r := NewRecorder()
 
-	r.RecordRequest("openai", "iw:abcdefgh999", "", "gpt-4o-mini", 0.0012, 0.0008, 0.0004, 100, 50)
-	r.RecordRequest("openai", "iw:abcdefgh999", "", "gpt-4o-mini", 0.0008, 0.0005, 0.0003, 80, 40)
-	r.RecordRequest("anthropic", "iw:zzzzzzzz0001", "", "claude-haiku", 0.002, 0.0015, 0.0005, 200, 100)
+	r.RecordRequest("openai", "iw:abcdefgh999", "", "gpt-4o-mini", "", 0.0012, 0.0008, 0.0004, 100, 50)
+	r.RecordRequest("openai", "iw:abcdefgh999", "", "gpt-4o-mini", "", 0.0008, 0.0005, 0.0003, 80, 40)
+	r.RecordRequest("anthropic", "iw:zzzzzzzz0001", "", "claude-haiku", "", 0.002, 0.0015, 0.0005, 200, 100)
 
 	snap := r.Snapshot()
 
@@ -147,8 +147,8 @@ func TestRecorderAggregatesByKeyAndProvider(t *testing.T) {
 func TestRecorderAggregatesByUser(t *testing.T) {
 	r := NewRecorder()
 
-	r.RecordRequest("openai", "iw:abc", "user-1", "gpt-4o-mini", 0.01, 0.006, 0.004, 10, 5)
-	r.RecordRequest("openai", "iw:abc", "user-2", "gpt-4o-mini", 0.02, 0.012, 0.008, 20, 10)
+	r.RecordRequest("openai", "iw:abc", "user-1", "gpt-4o-mini", "", 0.01, 0.006, 0.004, 10, 5)
+	r.RecordRequest("openai", "iw:abc", "user-2", "gpt-4o-mini", "", 0.02, 0.012, 0.008, 20, 10)
 
 	snap := r.Snapshot()
 	byUser, ok := snap["by_user"].(map[string]userSpend)
@@ -172,7 +172,7 @@ func TestRecorderRollsDayBucket(t *testing.T) {
 	r.spendTodayUSD = 9.99
 	r.requestsToday = 5
 
-	r.RecordRequest("openai", "iw:abc", "", "gpt-4o-mini", 0.01, 0.006, 0.004, 10, 5)
+	r.RecordRequest("openai", "iw:abc", "", "gpt-4o-mini", "", 0.01, 0.006, 0.004, 10, 5)
 
 	snap := r.Snapshot()
 	if got := snap["spend_today_usd"].(float64); got != 0.01 {
@@ -220,7 +220,7 @@ func TestRecorderSnapshotPreservesLocalByKeyBeforeRedisFlush(t *testing.T) {
 
 	r := NewRecorder()
 	r.BindRollup(store, adminrollup.NewPersister(store, adminrollup.MetricCost))
-	r.RecordRequest("gemini", "iw:abcdefgh999", "", "gemini-3-flash-preview", 0.0013, 0.0009, 0.0004, 100, 50)
+	r.RecordRequest("gemini", "iw:abcdefgh999", "", "gemini-3-flash-preview", "", 0.0013, 0.0009, 0.0004, 100, 50)
 
 	snap := r.Snapshot()
 	rows := byKeyRowsFromSnap(snap["by_key"])
@@ -234,7 +234,7 @@ func TestRecorderSnapshotPreservesLocalByKeyBeforeRedisFlush(t *testing.T) {
 
 func TestRecorderNilSafe(t *testing.T) {
 	var r *Recorder
-	r.RecordRequest("openai", "", "", "", 1, 0.6, 0.4, 1, 1)
+	r.RecordRequest("openai", "", "", "", "", 1, 0.6, 0.4, 1, 1)
 	if got := r.Snapshot()["available"].(bool); got {
 		t.Fatal("nil recorder should report unavailable")
 	}

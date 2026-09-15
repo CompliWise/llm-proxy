@@ -72,7 +72,7 @@ func TestRecorderRecordRedactionAppendsRollupRecentEvent(t *testing.T) {
 
 	r := NewRecorder()
 	r.BindRollup(store, adminrollup.NewPersister(store, adminrollup.MetricPII))
-	r.RecordRedaction("openai", "sk-iw-abc", map[string]int{"EMAIL_ADDRESS": 1}, 100, time.Millisecond, OutcomeOK)
+	r.RecordRedaction("openai", "sk-iw-abc", "", map[string]int{"EMAIL_ADDRESS": 1}, 100, time.Millisecond, OutcomeOK)
 
 	ctx := context.Background()
 	deadline := time.Now().Add(2 * time.Second)
@@ -104,7 +104,7 @@ func TestRecorderRecordRedactionAppendsRollupRecentEvent(t *testing.T) {
 
 func TestRecorderRecentBackendMemoryWhenRollupsUnbound(t *testing.T) {
 	r := NewRecorder()
-	r.RecordRedaction("openai", "iw:abc", nil, 0, 0, OutcomeOK)
+	r.RecordRedaction("openai", "iw:abc", "", nil, 0, 0, OutcomeOK)
 	snap := r.Snapshot()
 	if snap["recent_backend"] != "memory" {
 		t.Fatalf("recent_backend = %v, want memory", snap["recent_backend"])

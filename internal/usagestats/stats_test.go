@@ -12,9 +12,9 @@ import (
 func TestRecorderAggregatesByScope(t *testing.T) {
 	r := NewRecorder()
 
-	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", 100, 50)
-	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", 80, 40)
-	r.RecordRequest("anthropic", "claude-haiku", "iw:zzz", "user-2", 200, 100)
+	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", "", 100, 50)
+	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", "", 80, 40)
+	r.RecordRequest("anthropic", "claude-haiku", "iw:zzz", "user-2", "", 200, 100)
 
 	snap := r.Snapshot()
 
@@ -52,8 +52,8 @@ func TestRecorderAggregatesByScope(t *testing.T) {
 
 func TestRecorderIgnoresNonPositiveTokens(t *testing.T) {
 	r := NewRecorder()
-	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", 0, 0)
-	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", -5, 2)
+	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", "", 0, 0)
+	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", "", -5, 2)
 
 	snap := r.Snapshot()
 	if got := snap["requests_today"].(int64); got != 0 {
@@ -64,7 +64,7 @@ func TestRecorderIgnoresNonPositiveTokens(t *testing.T) {
 func TestRecorderOmitsEmptyScopes(t *testing.T) {
 	r := NewRecorder()
 	// No model/provider/key/user — only the global counter should move.
-	r.RecordRequest("", "", "", "", 10, 5)
+	r.RecordRequest("", "", "", "", "", 10, 5)
 
 	snap := r.Snapshot()
 	if got := snap["requests_today"].(int64); got != 1 {
@@ -86,7 +86,7 @@ func TestRecorderRollsDayBucket(t *testing.T) {
 	r.global = scopeUsage{Requests: 5, Tokens: 5000}
 	r.byModel["model:old"] = &scopeUsage{Requests: 5, Tokens: 5000}
 
-	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", 10, 5)
+	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", "", 10, 5)
 
 	snap := r.Snapshot()
 	if got := snap["requests_today"].(int64); got != 1 {
@@ -169,7 +169,7 @@ func TestRecorderSnapshotPreservesLocalBeforeRedisFlush(t *testing.T) {
 
 	r := NewRecorder()
 	r.BindRollup(store, adminrollup.NewPersister(store, adminrollup.MetricUsage))
-	r.RecordRequest("openai", "gpt-4o-mini", "iw:abcdefgh999", "user-1", 100, 50)
+	r.RecordRequest("openai", "gpt-4o-mini", "iw:abcdefgh999", "user-1", "", 100, 50)
 
 	snap := r.Snapshot()
 	if got := snap["requests_today"].(int64); got != 1 {
@@ -183,7 +183,7 @@ func TestRecorderSnapshotPreservesLocalBeforeRedisFlush(t *testing.T) {
 func TestRecorderNilSafe(t *testing.T) {
 	var r *Recorder
 	// Must not panic.
-	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", 1, 1)
+	r.RecordRequest("openai", "gpt-4o", "iw:abc", "user-1", "", 1, 1)
 	if got := r.Snapshot()["available"].(bool); got {
 		t.Fatal("nil recorder should report unavailable")
 	}

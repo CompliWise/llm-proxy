@@ -10,10 +10,10 @@ import (
 
 func TestRecorder_SnapshotCounts(t *testing.T) {
 	rec := NewRecorder()
-	rec.RecordRetired("openai", "o1-mini")
-	rec.RecordRetired("openai", "o1-mini")
-	rec.RecordDeprecated("anthropic", "claude-2")
-	rec.RecordUnknown("gemini", "typo-model")
+	rec.RecordRetired("openai", "o1-mini", "")
+	rec.RecordRetired("openai", "o1-mini", "")
+	rec.RecordDeprecated("anthropic", "claude-2", "")
+	rec.RecordUnknown("gemini", "typo-model", "")
 
 	snap := rec.Snapshot()
 	require.Equal(t, true, snap["available"])
