@@ -102,6 +102,10 @@ func (h *handler) handleListKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// When the portal BFF forwards an organization id, an org must only ever see
+	// its own keys — filter the full-table scan in memory (no GSI).
+	keys = filterKeysByOrg(keys, requestOrgID(r))
+
 	resp := make([]KeyResponse, 0, len(keys))
 	for _, k := range keys {
 		resp = append(resp, keyToResponse(k, false))
@@ -608,7 +612,7 @@ func (h *handler) handlePII(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.deps.PIISummary != nil {
-		resp["stats"] = h.deps.PIISummary()
+		resp["stats"] = orgScopePII(h.deps.PIISummary(), requestOrgID(r))
 	} else {
 		resp["stats"] = map[string]interface{}{"available": false}
 	}
@@ -634,7 +638,7 @@ func (h *handler) handleUsage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.deps.UsageSummary != nil {
-		resp["stats"] = h.deps.UsageSummary()
+		resp["stats"] = orgScopeStats(h.deps.UsageSummary(), requestOrgID(r), usageOrgScalars)
 	} else {
 		resp["stats"] = map[string]interface{}{"available": false}
 	}
@@ -897,7 +901,7 @@ func (h *handler) handleModelStatus(w http.ResponseWriter, r *http.Request) {
 		"registry": modelStatusRegistry(h.deps.YAMLConfig),
 	}
 	if h.deps.ModelStatusSummary != nil {
-		resp["stats"] = h.deps.ModelStatusSummary()
+		resp["stats"] = orgScopeStats(h.deps.ModelStatusSummary(), requestOrgID(r), modelStatusOrgScalars)
 	} else {
 		resp["stats"] = map[string]interface{}{"available": false}
 	}
@@ -982,7 +986,7 @@ func (h *handler) handleRateLimits(w http.ResponseWriter, r *http.Request) {
 	}
 	resp.Overrides = sanitizeRateLimitOverrides(resp.Overrides)
 	if h.deps.RateLimitSummary != nil {
-		resp.Stats = h.deps.RateLimitSummary()
+		resp.Stats = orgScopeStats(h.deps.RateLimitSummary(), requestOrgID(r), rateLimitOrgScalars)
 	}
 
 	writeJSON(w, http.StatusOK, resp)
@@ -1030,7 +1034,7 @@ func (h *handler) handleCost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if h.deps.CostSummary != nil {
-		resp["stats"] = h.deps.CostSummary()
+		resp["stats"] = orgScopeStats(h.deps.CostSummary(), requestOrgID(r), costOrgScalars)
 	} else {
 		resp["stats"] = map[string]interface{}{"available": false}
 	}

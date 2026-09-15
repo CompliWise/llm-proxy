@@ -124,6 +124,7 @@ func (h *handler) handleUpsertCompliwiseKey(w http.ResponseWriter, r *http.Reque
 		Description:    "compliwise:" + req.OrganizationID,
 		Enabled:        true,
 		RedactPII:      req.PiiRedact,
+		OrgID:          req.OrganizationID,
 		Tags: map[string]string{
 			"source":            "compliwise",
 			"organization_id":   req.OrganizationID,

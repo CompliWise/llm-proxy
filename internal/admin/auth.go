@@ -40,18 +40,18 @@ type authConfig struct {
 }
 
 type authenticator struct {
-	oauthConfig        *oauth2.Config
-	verifier           *oidc.IDTokenVerifier
-	sessionStore       *sessions.CookieStore
-	allowedDomain      string
-	redirectURLEnv     string
-	devBypass          bool
-	devFrontendOrigin  string
-	userStore          *adminusers.Store
-	editorLimits       config.EditorLimitsConfig
-	viewerLimits       config.ViewerLimitsConfig
-	logger             *slog.Logger
-	portalAdminSecret  string
+	oauthConfig       *oauth2.Config
+	verifier          *oidc.IDTokenVerifier
+	sessionStore      *sessions.CookieStore
+	allowedDomain     string
+	redirectURLEnv    string
+	devBypass         bool
+	devFrontendOrigin string
+	userStore         *adminusers.Store
+	editorLimits      config.EditorLimitsConfig
+	viewerLimits      config.ViewerLimitsConfig
+	logger            *slog.Logger
+	portalAdminSecret string
 }
 
 func newAuthenticator(logger *slog.Logger, adminCfg config.AdminDashboardConfig, userStore *adminusers.Store) (*authenticator, error) {

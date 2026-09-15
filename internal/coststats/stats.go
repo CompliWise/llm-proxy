@@ -75,6 +75,7 @@ type Recorder struct {
 	byKey      map[string]*keySpend
 	byUser     map[string]*userSpend
 	byProvider map[string]*providerSpend
+	byOrg      map[string]*userSpend
 	recent     []recentEntry
 	flushed    costFlushed
 
@@ -91,6 +92,7 @@ type costFlushed struct {
 	byProvider                              map[string]providerSpend
 	byKey                                   map[string]keySpend
 	byUser                                  map[string]userSpend
+	byOrg                                   map[string]userSpend
 }
 
 var costRollupCaps = adminrollup.TopNCaps{ByKey: 100, ByUser: 100}
@@ -104,6 +106,7 @@ func NewRecorder() *Recorder {
 		byKey:      make(map[string]*keySpend),
 		byUser:     make(map[string]*userSpend),
 		byProvider: make(map[string]*providerSpend),
+		byOrg:      make(map[string]*userSpend),
 	}
 }
 
@@ -136,6 +139,7 @@ func (r *Recorder) maybeRollDay(now time.Time) {
 	r.byKey = make(map[string]*keySpend)
 	r.byUser = make(map[string]*userSpend)
 	r.byProvider = make(map[string]*providerSpend)
+	r.byOrg = make(map[string]*userSpend)
 	r.recent = nil
 }
 
@@ -150,13 +154,16 @@ func (r *Recorder) rollupDataLocked() map[string]interface{} {
 		"by_key":                 spendList(r.byKey),
 		"by_user":                userSpendMap(r.byUser),
 		"by_provider":            providerList(r.byProvider),
+		"by_org":                 orgSpendDimMap(r.byOrg),
 	}
 }
 
 // RecordRequest ingests one tracked LLM request. keyID should be a masked iw:
-// key when available (see middleware.MaskKeyID).
+// key when available (see middleware.MaskKeyID). orgID is the owning
+// organization (empty for unscoped/legacy keys); a blank org records no by_org
+// member so legacy traffic never creates a phantom organization bucket.
 func (r *Recorder) RecordRequest(
-	provider, keyID, userID, model string,
+	provider, keyID, userID, model, orgID string,
 	spendUSD, inputSpendUSD, outputSpendUSD float64,
 	inputTokens, outputTokens int,
 ) {
@@ -216,6 +223,19 @@ func (r *Recorder) RecordRequest(
 		us.Requests++
 		us.InputTokens += int64(inputTokens)
 		us.OutputTokens += int64(outputTokens)
+	}
+	if orgID != "" {
+		os := r.byOrg[orgID]
+		if os == nil {
+			os = &userSpend{}
+			r.byOrg[orgID] = os
+		}
+		os.SpendUSD += spendUSD
+		os.InputSpendUSD += inputSpendUSD
+		os.OutputSpendUSD += outputSpendUSD
+		os.Requests++
+		os.InputTokens += int64(inputTokens)
+		os.OutputTokens += int64(outputTokens)
 	}
 
 	entry := recentEntry{
@@ -279,6 +299,7 @@ func (r *Recorder) costDeltaLocked() adminrollup.Delta {
 			"by_provider": {},
 			"by_key":      {},
 			"by_user":     {},
+			"by_org":      {},
 		},
 	}
 	for name, ps := range r.byProvider {
@@ -308,6 +329,15 @@ func (r *Recorder) costDeltaLocked() adminrollup.Delta {
 		addDim(d.Dimensions["by_user"], scope, "input_tokens", float64(us.InputTokens-prev.InputTokens))
 		addDim(d.Dimensions["by_user"], scope, "output_tokens", float64(us.OutputTokens-prev.OutputTokens))
 	}
+	for org, os := range r.byOrg {
+		prev := r.flushed.byOrg[org]
+		addDim(d.Dimensions["by_org"], org, "spend_usd", os.SpendUSD-prev.SpendUSD)
+		addDim(d.Dimensions["by_org"], org, "input_spend_usd", os.InputSpendUSD-prev.InputSpendUSD)
+		addDim(d.Dimensions["by_org"], org, "output_spend_usd", os.OutputSpendUSD-prev.OutputSpendUSD)
+		addDim(d.Dimensions["by_org"], org, "requests", float64(os.Requests-prev.Requests))
+		addDim(d.Dimensions["by_org"], org, "input_tokens", float64(os.InputTokens-prev.InputTokens))
+		addDim(d.Dimensions["by_org"], org, "output_tokens", float64(os.OutputTokens-prev.OutputTokens))
+	}
 	return d
 }
 
@@ -328,6 +358,9 @@ func (r *Recorder) advanceCostFlushedLocked() {
 	if r.flushed.byUser == nil {
 		r.flushed.byUser = make(map[string]userSpend)
 	}
+	if r.flushed.byOrg == nil {
+		r.flushed.byOrg = make(map[string]userSpend)
+	}
 	r.flushed.spendUSD = r.spendTodayUSD
 	r.flushed.inputSpendUSD = r.inputSpendTodayUSD
 	r.flushed.outputSpendUSD = r.outputSpendTodayUSD
@@ -343,6 +376,27 @@ func (r *Recorder) advanceCostFlushedLocked() {
 	for scope, us := range r.byUser {
 		r.flushed.byUser[scope] = *us
 	}
+	for org, os := range r.byOrg {
+		r.flushed.byOrg[org] = *os
+	}
+}
+
+// orgSpendDimMap projects the in-process per-org spend accumulator into the
+// member->{field:value} shape used for the by_org snapshot dimension (matching
+// what the adminrollup read path produces from Redis aggregates).
+func orgSpendDimMap(m map[string]*userSpend) map[string]map[string]float64 {
+	out := make(map[string]map[string]float64, len(m))
+	for org, v := range m {
+		out[org] = map[string]float64{
+			"spend_usd":        v.SpendUSD,
+			"input_spend_usd":  v.InputSpendUSD,
+			"output_spend_usd": v.OutputSpendUSD,
+			"requests":         float64(v.Requests),
+			"input_tokens":     float64(v.InputTokens),
+			"output_tokens":    float64(v.OutputTokens),
+		}
+	}
+	return out
 }
 
 func userSpendMap(m map[string]*userSpend) map[string]userSpend {
@@ -407,6 +461,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	var localByKey []keySpend
 	var localByUser map[string]userSpend
 	var localByProvider []providerSpend
+	var localByOrg map[string]map[string]float64
 	if localActive {
 		spendToday = r.spendTodayUSD
 		inputSpendToday = r.inputSpendTodayUSD
@@ -417,6 +472,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		localByKey = spendList(r.byKey)
 		localByUser = userSpendMap(r.byUser)
 		localByProvider = providerList(r.byProvider)
+		localByOrg = orgSpendDimMap(r.byOrg)
 	}
 
 	snap := map[string]interface{}{
@@ -432,6 +488,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		"by_key":                 localByKey,
 		"by_user":                localByUser,
 		"by_provider":            localByProvider,
+		"by_org":                 localByOrg,
 		"recent":                 recent,
 	}
 	r.mu.RUnlock()
@@ -442,6 +499,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		mergeLocalByKeyIntoSnap(snap, localByKey)
 		mergeLocalByUserIntoSnap(snap, localByUser)
 		mergeLocalByProviderIntoSnap(snap, localByProvider)
+		adminrollup.MergeSnapDimMap(snap, "by_org", localByOrg)
 	}
 	r.MergeHistory(adminrollup.MetricCost, snap)
 	r.MergeHourly(adminrollup.MetricCost, snap)

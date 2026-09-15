@@ -27,6 +27,7 @@ type Recorder struct {
 	byProv  map[string]*scopeUsage
 	byKey   map[string]*scopeUsage
 	byUser  map[string]*scopeUsage
+	byOrg   map[string]*scopeUsage
 	flushed usageFlushed
 
 	// Shared Redis rollup lifecycle; promoted methods satisfy the recorder's
@@ -52,6 +53,7 @@ type usageFlushed struct {
 	byProv  map[string]scopeUsage
 	byKey   map[string]scopeUsage
 	byUser  map[string]scopeUsage
+	byOrg   map[string]scopeUsage
 }
 
 var usageRollupCaps = adminrollup.TopNCaps{ByKey: 100, ByUser: 100}
@@ -66,6 +68,7 @@ func NewRecorder() *Recorder {
 		byProv:    make(map[string]*scopeUsage),
 		byKey:     make(map[string]*scopeUsage),
 		byUser:    make(map[string]*scopeUsage),
+		byOrg:     make(map[string]*scopeUsage),
 	}
 }
 
@@ -86,6 +89,7 @@ func (r *Recorder) maybeRollDay(now time.Time) {
 	r.byProv = make(map[string]*scopeUsage)
 	r.byKey = make(map[string]*scopeUsage)
 	r.byUser = make(map[string]*scopeUsage)
+	r.byOrg = make(map[string]*scopeUsage)
 }
 
 func scopeKey(kind, name string) string {
@@ -102,8 +106,10 @@ func (r *Recorder) add(scope map[string]*scopeUsage, key string, tokens int64) {
 	u.Tokens += tokens
 }
 
-// RecordRequest ingests token volume for one LLM request.
-func (r *Recorder) RecordRequest(provider, model, keyID, userID string, inputTokens, outputTokens int) {
+// RecordRequest ingests token volume for one LLM request. orgID is the owning
+// organization (empty for unscoped/legacy keys); a blank org records no by_org
+// member so legacy traffic never creates a phantom organization bucket.
+func (r *Recorder) RecordRequest(provider, model, keyID, userID, orgID string, inputTokens, outputTokens int) {
 	if r == nil {
 		return
 	}
@@ -128,6 +134,9 @@ func (r *Recorder) RecordRequest(provider, model, keyID, userID string, inputTok
 	}
 	if userID != "" {
 		r.add(r.byUser, scopeKey("user", userID), tokens)
+	}
+	if orgID != "" {
+		r.add(r.byOrg, orgID, tokens)
 	}
 	entry := usageEvent{
 		Time:         now.Unix(),
@@ -160,6 +169,7 @@ func (r *Recorder) usageDeltaLocked() adminrollup.Delta {
 			"by_provider": usageScopeDelta(r.byProv, r.flushed.byProv),
 			"by_key":      usageScopeDelta(r.byKey, r.flushed.byKey),
 			"by_user":     usageScopeDelta(r.byUser, r.flushed.byUser),
+			"by_org":      usageScopeDelta(r.byOrg, r.flushed.byOrg),
 		},
 	}
 	return d
@@ -192,6 +202,9 @@ func (r *Recorder) advanceUsageFlushedLocked() {
 	if r.flushed.byUser == nil {
 		r.flushed.byUser = make(map[string]scopeUsage)
 	}
+	if r.flushed.byOrg == nil {
+		r.flushed.byOrg = make(map[string]scopeUsage)
+	}
 	r.flushed.global = r.global
 	for k, v := range r.byModel {
 		r.flushed.byModel[k] = *v
@@ -205,6 +218,23 @@ func (r *Recorder) advanceUsageFlushedLocked() {
 	for k, v := range r.byUser {
 		r.flushed.byUser[k] = *v
 	}
+	for k, v := range r.byOrg {
+		r.flushed.byOrg[k] = *v
+	}
+}
+
+// orgUsageDimMap projects the in-process per-org usage accumulator into the
+// member->{field:value} shape used for the by_org snapshot dimension (matching
+// what the adminrollup read path produces from Redis aggregates).
+func orgUsageDimMap(m map[string]*scopeUsage) map[string]map[string]float64 {
+	out := make(map[string]map[string]float64, len(m))
+	for org, v := range m {
+		out[org] = map[string]float64{
+			"requests": float64(v.Requests),
+			"tokens":   float64(v.Tokens),
+		}
+	}
+	return out
 }
 
 func scopeMap(m map[string]*scopeUsage) map[string]scopeUsage {
@@ -223,6 +253,7 @@ func (r *Recorder) rollupDataLocked() map[string]interface{} {
 		"by_provider":    scopeMap(r.byProv),
 		"by_key":         scopeMap(r.byKey),
 		"by_user":        scopeMap(r.byUser),
+		"by_org":         orgUsageDimMap(r.byOrg),
 	}
 }
 
@@ -291,11 +322,13 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	var byModel map[string]*scopeUsage
 	var byProv map[string]*scopeUsage
 	var counters map[string]scopeUsage
+	var localByOrg map[string]map[string]float64
 	if localActive {
 		global = r.global
 		byModel = r.byModel
 		byProv = r.byProv
 		counters = r.allCountersLocked()
+		localByOrg = orgUsageDimMap(r.byOrg)
 	} else {
 		counters = map[string]scopeUsage{"global": {}}
 	}
@@ -309,12 +342,14 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		"top_models":     topScopes(byModel, 10),
 		"top_providers":  topScopes(byProv, 10),
 		"counters":       counters,
+		"by_org":         localByOrg,
 	}
 	r.mu.RUnlock()
 
 	r.MergeToday(adminrollup.MetricUsage, today, snap, usageRollupCaps)
 	if localActive {
 		mergeLocalUsageIntoSnap(snap, global, counters)
+		adminrollup.MergeSnapDimMap(snap, "by_org", localByOrg)
 	}
 	r.MergeHistory(adminrollup.MetricUsage, snap)
 	r.MergeHourly(adminrollup.MetricUsage, snap)

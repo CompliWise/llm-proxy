@@ -15,6 +15,9 @@ type ScopeKeys struct {
 	Model    string
 	APIKey   string
 	UserID   string
+	// OrgID scopes limits/counters to a single organization (tenant). Empty
+	// for unscoped/legacy keys.
+	OrgID string
 }
 
 // ReservationResult contains the outcome of a reservation attempt.

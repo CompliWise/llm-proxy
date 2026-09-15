@@ -310,6 +310,9 @@ func (m *memoryLimiter) scopeKeys(scope ScopeKeys) []string {
 	// We track separate counters for each scope dimension such that any
 	// configured limit can apply independently. Use plain strings.
 	keys := []string{"global"}
+	if scope.OrgID != "" {
+		keys = append(keys, "org:"+scope.OrgID)
+	}
 	if scope.Provider != "" {
 		keys = append(keys, "provider:"+scope.Provider)
 	}

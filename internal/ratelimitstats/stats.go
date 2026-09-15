@@ -30,6 +30,31 @@ type blockEvent struct {
 type rateLimitFlushed struct {
 	requestsTotal, requestsAllowed, requestsBlocked int64
 	byProvider, byReason                            map[string]int64
+	byOrg                                           map[string]orgRateLimit
+}
+
+// orgRateLimit holds the per-organization scalar totals needed to org-scope the
+// rate-limit admin summary (mirrors the top-level scalar fields).
+type orgRateLimit struct {
+	RequestsTotal   int64
+	RequestsAllowed int64
+	RequestsBlocked int64
+}
+
+func (o orgRateLimit) fields() map[string]float64 {
+	return map[string]float64{
+		"requests_total":   float64(o.RequestsTotal),
+		"requests_allowed": float64(o.RequestsAllowed),
+		"requests_blocked": float64(o.RequestsBlocked),
+	}
+}
+
+func orgRateLimitDimMap(m map[string]*orgRateLimit) map[string]map[string]float64 {
+	out := make(map[string]map[string]float64, len(m))
+	for org, v := range m {
+		out[org] = v.fields()
+	}
+	return out
 }
 
 // Recorder accumulates rolling rate-limit stats in-process.
@@ -44,6 +69,7 @@ type Recorder struct {
 
 	byProvider map[string]int64
 	byReason   map[string]int64
+	byOrg      map[string]*orgRateLimit
 
 	recentBlocks []blockEvent
 	flushed      rateLimitFlushed
@@ -60,6 +86,7 @@ func NewRecorder() *Recorder {
 		dayKey:     now.Format("2006-01-02"),
 		byProvider: make(map[string]int64),
 		byReason:   make(map[string]int64),
+		byOrg:      make(map[string]*orgRateLimit),
 	}
 }
 
@@ -80,6 +107,7 @@ func (r *Recorder) maybeRollDay(now time.Time) {
 	r.requestsBlocked = 0
 	r.byProvider = make(map[string]int64)
 	r.byReason = make(map[string]int64)
+	r.byOrg = make(map[string]*orgRateLimit)
 	r.recentBlocks = nil
 }
 
@@ -113,7 +141,33 @@ func (r *Recorder) deltaLocked() adminrollup.Delta {
 		}
 		d.Dimensions["by_reason"] = reasonDelta
 	}
+	if orgDelta := orgRateLimitDelta(r.byOrg, r.flushed.byOrg); len(orgDelta) > 0 {
+		if d.Dimensions == nil {
+			d.Dimensions = make(map[string]map[string]float64)
+		}
+		d.Dimensions["by_org"] = orgDelta
+	}
 	return d
+}
+
+// orgRateLimitDelta emits per-org field deltas (member|field -> delta) for the
+// by_org dimension.
+func orgRateLimitDelta(cur map[string]*orgRateLimit, prev map[string]orgRateLimit) map[string]float64 {
+	out := make(map[string]float64)
+	for org, v := range cur {
+		p := prev[org]
+		addOrgDim(out, org, "requests_total", v.RequestsTotal-p.RequestsTotal)
+		addOrgDim(out, org, "requests_allowed", v.RequestsAllowed-p.RequestsAllowed)
+		addOrgDim(out, org, "requests_blocked", v.RequestsBlocked-p.RequestsBlocked)
+	}
+	return out
+}
+
+func addOrgDim(m map[string]float64, org, field string, delta int64) {
+	if delta == 0 {
+		return
+	}
+	m[adminrollup.DimMemberField(org, field)] = float64(delta)
 }
 
 func (r *Recorder) advanceFlushedLocked() {
@@ -122,6 +176,9 @@ func (r *Recorder) advanceFlushedLocked() {
 	}
 	if r.flushed.byReason == nil {
 		r.flushed.byReason = make(map[string]int64)
+	}
+	if r.flushed.byOrg == nil {
+		r.flushed.byOrg = make(map[string]orgRateLimit)
 	}
 	r.flushed.requestsTotal = r.requestsTotal
 	r.flushed.requestsAllowed = r.requestsAllowed
@@ -132,12 +189,17 @@ func (r *Recorder) advanceFlushedLocked() {
 	for k, v := range r.byReason {
 		r.flushed.byReason[k] = v
 	}
+	for k, v := range r.byOrg {
+		r.flushed.byOrg[k] = *v
+	}
 }
 
 // RecordDecision ingests one rate-limit check. Memory and Redis aggregates
-// cover every decision; row history archives blocked requests only.
+// cover every decision; row history archives blocked requests only. orgID is the
+// owning organization (empty for unscoped/legacy keys); a blank org records no
+// by_org member.
 func (r *Recorder) RecordDecision(
-	provider, model, keyID, userID string,
+	provider, model, keyID, userID, orgID string,
 	allowed bool,
 	reason, metric, window, scopeKey string,
 	limit, remaining int,
@@ -149,10 +211,25 @@ func (r *Recorder) RecordDecision(
 	r.mu.Lock()
 	r.maybeRollDay(now)
 	r.requestsTotal++
+	var org *orgRateLimit
+	if orgID != "" {
+		org = r.byOrg[orgID]
+		if org == nil {
+			org = &orgRateLimit{}
+			r.byOrg[orgID] = org
+		}
+		org.RequestsTotal++
+	}
 	if allowed {
 		r.requestsAllowed++
+		if org != nil {
+			org.RequestsAllowed++
+		}
 	} else {
 		r.requestsBlocked++
+		if org != nil {
+			org.RequestsBlocked++
+		}
 		if provider != "" {
 			r.byProvider[provider]++
 		}
@@ -210,6 +287,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	var requestsTotal, requestsAllowed, requestsBlocked int64
 	byProvider := make(map[string]int64)
 	byReason := make(map[string]int64)
+	var localByOrg map[string]map[string]float64
 	if localActive {
 		requestsTotal = r.requestsTotal
 		requestsAllowed = r.requestsAllowed
@@ -220,6 +298,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		for k, v := range r.byReason {
 			byReason[k] = v
 		}
+		localByOrg = orgRateLimitDimMap(r.byOrg)
 	}
 
 	snap := map[string]interface{}{
@@ -231,6 +310,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		"requests_blocked": requestsBlocked,
 		"by_provider":      byProvider,
 		"by_reason":        byReason,
+		"by_org":           localByOrg,
 		"recent_blocks":    recent,
 	}
 	r.mu.RUnlock()
@@ -238,6 +318,7 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	r.MergeToday(adminrollup.MetricRateLimit, today, snap, adminrollup.TopNCaps{})
 	if localActive {
 		mergeLocalRateLimitIntoSnap(snap, requestsTotal, requestsAllowed, requestsBlocked, byProvider, byReason)
+		adminrollup.MergeSnapDimMap(snap, "by_org", localByOrg)
 	}
 	r.MergeHistory(adminrollup.MetricRateLimit, snap)
 	r.MergeHourly(adminrollup.MetricRateLimit, snap)

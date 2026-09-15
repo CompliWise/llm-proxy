@@ -15,17 +15,21 @@ import (
 )
 
 // StatsRecorder ingests per-request spend for the admin dashboard rollup.
+// orgID is the owning CompliWise organization (empty for unscoped/legacy keys);
+// it drives the by_org dimension used to org-scope admin monitoring.
 type StatsRecorder interface {
 	RecordRequest(
-		provider, keyID, userID, model string,
+		provider, keyID, userID, model, orgID string,
 		spendUSD, inputSpendUSD, outputSpendUSD float64,
 		inputTokens, outputTokens int,
 	)
 }
 
-// UsageStatsRecorder ingests token volume for the admin Usage page.
+// UsageStatsRecorder ingests token volume for the admin Usage page. orgID is the
+// owning organization (empty for unscoped/legacy keys); it drives the by_org
+// dimension used to org-scope admin monitoring.
 type UsageStatsRecorder interface {
-	RecordRequest(provider, model, keyID, userID string, inputTokens, outputTokens int)
+	RecordRequest(provider, model, keyID, userID, orgID string, inputTokens, outputTokens int)
 }
 
 // roundUpTo4Decimals rounds a float64 value up to the nearest 4th decimal place
@@ -534,7 +538,7 @@ func (ct *CostTracker) CalculateCostWithFuzzyMatch(provider, model string, input
 }
 
 // TrackRequest processes a request and writes cost information to transports (sync or async based on configuration).
-func (ct *CostTracker) TrackRequest(metadata *providers.LLMResponseMetadata, userID, ipAddress, endpoint, keyID string) error {
+func (ct *CostTracker) TrackRequest(metadata *providers.LLMResponseMetadata, userID, ipAddress, endpoint, keyID, orgID string) error {
 	// Calculate costs with fuzzy matching fallback
 	inputCost, outputCost, totalCost, matchedModel, isEstimate, err := ct.CalculateCostWithFuzzyMatch(
 		metadata.Provider,
@@ -614,6 +618,7 @@ func (ct *CostTracker) TrackRequest(metadata *providers.LLMResponseMetadata, use
 			keyID,
 			userID,
 			record.Model,
+			orgID,
 			record.TotalCost,
 			record.InputCost,
 			record.OutputCost,
@@ -627,6 +632,7 @@ func (ct *CostTracker) TrackRequest(metadata *providers.LLMResponseMetadata, use
 			record.Model,
 			keyID,
 			userID,
+			orgID,
 			record.InputTokens,
 			record.OutputTokens,
 		)

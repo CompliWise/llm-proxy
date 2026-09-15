@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/Instawork/llm-proxy/internal/apikeys"
 	"github.com/Instawork/llm-proxy/internal/circuit"
 	"github.com/Instawork/llm-proxy/internal/config"
 	"github.com/Instawork/llm-proxy/internal/modelstatusstats"
@@ -40,8 +41,12 @@ func ModelStatusMiddleware(
 			}
 
 			providerName := provider.GetName()
+			orgID := ""
+			if rec, ok := apikeys.FromContext(r.Context()); ok {
+				orgID = rec.OrganizationID()
+			}
 			if entry, retired := cfg.LookupRetiredModel(providerName, model); retired {
-				recorder.RecordRetired(providerName, model)
+				recorder.RecordRetired(providerName, model, orgID)
 				emitModelMetric(metrics, "model.retired_call", providerName, model)
 				if err := providers.WriteRetiredModelResponse(w, provider, model, entry); err != nil {
 					log.Printf("model status: failed to encode retired response: %v", err)
@@ -55,10 +60,10 @@ func ModelStatusMiddleware(
 
 			modelCfg, _ := cfg.GetModelConfig(providerName, model)
 			if modelCfg != nil && modelCfg.Deprecated {
-				recorder.RecordDeprecated(providerName, model)
+				recorder.RecordDeprecated(providerName, model, orgID)
 				emitModelMetric(metrics, "model.deprecated_call", providerName, model)
 			} else if modelCfg == nil {
-				recorder.RecordUnknown(providerName, model)
+				recorder.RecordUnknown(providerName, model, orgID)
 				log.Printf("model status: unrecognized model %q for provider %q", model, providerName)
 				emitModelMetric(metrics, "model.unknown_call", providerName, "__unknown__")
 			}

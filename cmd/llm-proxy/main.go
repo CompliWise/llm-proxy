@@ -1653,15 +1653,17 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 				userID := middleware.ExtractUserIDFromRequest(r, provider)
 				ipAddress := middleware.ExtractIPAddressFromRequest(r)
 				keyID := ""
+				orgID := ""
 				if keyRecord, ok := apikeys.FromContext(r.Context()); ok && keyRecord != nil {
 					keyID = middleware.MaskKeyID(keyRecord.PK)
+					orgID = keyRecord.OrganizationID()
 					if store, ok := globalAPIKeyStore.(*apikeys.Store); ok && store != nil {
 						if err := store.MarkFirstRequest(r.Context(), keyRecord.PK, time.Now()); err != nil {
 							logger.Warn("Failed to mark first request", "error", err, "key", keyID)
 						}
 					}
 				}
-				if err := globalCostTracker.TrackRequest(metadata, userID, ipAddress, r.URL.Path, keyID); err != nil {
+				if err := globalCostTracker.TrackRequest(metadata, userID, ipAddress, r.URL.Path, keyID, orgID); err != nil {
 					logger.Warn("Failed to track request cost", "error", err)
 				}
 			}

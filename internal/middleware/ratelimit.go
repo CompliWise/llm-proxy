@@ -41,6 +41,7 @@ func RateLimitingMiddleware(pm *providers.ProviderManager, cfg *config.YAMLConfi
 			// Scope keys
 			userID := ExtractUserIDFromRequest(r, prov)
 			apiKey := extractRateLimitAPIKey(r)
+			orgID := extractRateLimitOrg(r)
 			model := ""
 
 			estTokens, parsedModel := providers.EstimateRequestTokens(r, estCfg, prov)
@@ -48,7 +49,7 @@ func RateLimitingMiddleware(pm *providers.ProviderManager, cfg *config.YAMLConfi
 				model = parsedModel
 			}
 
-			scope := ratelimit.ScopeKeys{Provider: prov.GetName(), Model: model, APIKey: apiKey, UserID: userID}
+			scope := ratelimit.ScopeKeys{Provider: prov.GetName(), Model: model, APIKey: apiKey, UserID: userID, OrgID: orgID}
 			reservationID := newReservationID()
 			res, err := limiter.CheckAndReserve(r.Context(), reservationID, scope, estTokens, time.Now())
 			if err != nil {
@@ -84,7 +85,7 @@ func RateLimitingMiddleware(pm *providers.ProviderManager, cfg *config.YAMLConfi
 						remaining = res.Details.Remaining
 					}
 					stats.RecordDecision(
-						prov.GetName(), model, apiKey, userID,
+						prov.GetName(), model, apiKey, userID, orgID,
 						false, res.Reason, metric, window, scopeKey, limit, remaining,
 					)
 				}
@@ -95,7 +96,7 @@ func RateLimitingMiddleware(pm *providers.ProviderManager, cfg *config.YAMLConfi
 			}
 
 			if stats != nil {
-				stats.RecordDecision(prov.GetName(), model, apiKey, userID, true, "", "", "", "", 0, 0)
+				stats.RecordDecision(prov.GetName(), model, apiKey, userID, orgID, true, "", "", "", "", 0, 0)
 			}
 
 			log.Printf("ratelimit: allow provider=%s model=%s user=%s key_prefix=%s est_tokens=%d",
@@ -225,4 +226,14 @@ func extractRateLimitAPIKey(r *http.Request) string {
 		return rec.PK
 	}
 	return extractInboundProxyKey(r)
+}
+
+// extractRateLimitOrg returns the owning organization id for rate-limit scoping,
+// read from the resolved key record (with its Tags fallback). Empty for
+// unscoped/legacy keys.
+func extractRateLimitOrg(r *http.Request) string {
+	if rec, ok := apikeys.FromContext(r.Context()); ok && rec != nil {
+		return rec.OrganizationID()
+	}
+	return ""
 }

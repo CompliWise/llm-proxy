@@ -373,18 +373,21 @@ func (s *Store) buildTodayData(ctx context.Context, metric, day string, caps Top
 		byProv, _ := s.loadHash(ctx, dimKey(metric, day, "by_provider"))
 		byKey, _ := s.loadHash(ctx, dimKey(metric, day, "by_key"))
 		byUser, _ := s.loadHash(ctx, dimKey(metric, day, "by_user"))
-		return costDataFromAggregates(totals, byProv, byKey, byUser, caps), true
+		byOrg, _ := s.loadHash(ctx, dimKey(metric, day, "by_org"))
+		return costDataFromAggregates(totals, byProv, byKey, byUser, byOrg, caps), true
 	case MetricUsage:
 		byModel, _ := s.loadHash(ctx, dimKey(metric, day, "by_model"))
 		byProv, _ := s.loadHash(ctx, dimKey(metric, day, "by_provider"))
 		byKey, _ := s.loadHash(ctx, dimKey(metric, day, "by_key"))
 		byUser, _ := s.loadHash(ctx, dimKey(metric, day, "by_user"))
-		return usageDataFromAggregates(totals, byModel, byProv, byKey, byUser, caps), true
+		byOrg, _ := s.loadHash(ctx, dimKey(metric, day, "by_org"))
+		return usageDataFromAggregates(totals, byModel, byProv, byKey, byUser, byOrg, caps), true
 	case MetricPII:
 		byEntity, _ := s.loadHash(ctx, dimKey(metric, day, "by_entity"))
 		byProv, _ := s.loadHash(ctx, dimKey(metric, day, "by_provider"))
 		byKey, _ := s.loadHash(ctx, dimKey(metric, day, "by_key"))
-		return piiDataFromAggregates(totals, byEntity, byProv, byKey, caps), true
+		byOrg, _ := s.loadHash(ctx, dimKey(metric, day, "by_org"))
+		return piiDataFromAggregates(totals, byEntity, byProv, byKey, byOrg, caps), true
 	case MetricIDGate:
 		byEntity, _ := s.loadHash(ctx, dimKey(metric, day, "by_entity"))
 		byProv, _ := s.loadHash(ctx, dimKey(metric, day, "by_provider"))
@@ -398,11 +401,13 @@ func (s *Store) buildTodayData(ctx context.Context, metric, day string, caps Top
 		byRetired, _ := s.loadHash(ctx, dimKey(metric, day, "by_retired"))
 		byDeprecated, _ := s.loadHash(ctx, dimKey(metric, day, "by_deprecated"))
 		byUnknown, _ := s.loadHash(ctx, dimKey(metric, day, "by_unknown"))
-		return modelStatusDataFromAggregates(totals, byRetired, byDeprecated, byUnknown, caps), true
+		byOrg, _ := s.loadHash(ctx, dimKey(metric, day, "by_org"))
+		return modelStatusDataFromAggregates(totals, byRetired, byDeprecated, byUnknown, byOrg, caps), true
 	case MetricRateLimit:
 		byProv, _ := s.loadHash(ctx, dimKey(metric, day, "by_provider"))
 		byReason, _ := s.loadHash(ctx, dimKey(metric, day, "by_reason"))
-		return rateLimitDataFromAggregates(totals, byProv, byReason), true
+		byOrg, _ := s.loadHash(ctx, dimKey(metric, day, "by_org"))
+		return rateLimitDataFromAggregates(totals, byProv, byReason, byOrg), true
 	default:
 		return nil, false
 	}
@@ -436,7 +441,7 @@ func (s *Store) ArchiveDailyFromAggregates(ctx context.Context, metric, day stri
 		return err
 	}
 	_ = s.be.del(ctx, totalsKey(metric, day))
-	for _, dim := range []string{"by_provider", "by_key", "by_model", "by_user", "by_entity"} {
+	for _, dim := range []string{"by_provider", "by_key", "by_model", "by_user", "by_entity", "by_org"} {
 		_ = s.be.del(ctx, dimKey(metric, day, dim))
 	}
 	_ = s.be.del(ctx, todayKey(metric, day))

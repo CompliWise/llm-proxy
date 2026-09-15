@@ -32,13 +32,13 @@ func testDashboardHandler(t *testing.T) (*handler, *apikeys.Store) {
 	piiRec := pii.NewRecorder()
 	circuitRec := circuitstats.NewRecorder()
 	modelStatusRec := modelstatusstats.NewRecorder()
-	costRec.RecordRequest("openai", "iw:abc1234", "user-1", "gpt-4", 0.01, 0.005, 0.005, 100, 50)
-	usageRec.RecordRequest("openai", "gpt-4", "iw:abc1234", "user-1", 100, 50)
-	piiRec.RecordRedaction("openai", "iw:secret-key", nil, 0, time.Millisecond, pii.OutcomeOK)
+	costRec.RecordRequest("openai", "iw:abc1234", "user-1", "gpt-4", "", 0.01, 0.005, 0.005, 100, 50)
+	usageRec.RecordRequest("openai", "gpt-4", "iw:abc1234", "user-1", "", 100, 50)
+	piiRec.RecordRedaction("openai", "iw:secret-key", "", nil, 0, time.Millisecond, pii.OutcomeOK)
 	circuitRec.RecordProbe("openai", "openai")
 	circuitRec.RecordProbeClosed("openai", "openai", 200)
-	modelStatusRec.RecordRetired("openai", "o1-mini")
-	modelStatusRec.RecordUnknown("openai", "typo-model")
+	modelStatusRec.RecordRetired("openai", "o1-mini", "")
+	modelStatusRec.RecordUnknown("openai", "typo-model", "")
 
 	h.deps.YAMLConfig.Features.PIIRedact.Enabled = true
 	h.deps.YAMLConfig.RetiredModels = map[string]map[string]config.RetiredModelEntry{

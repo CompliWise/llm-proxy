@@ -53,7 +53,7 @@ type PIIRedactor interface {
 // satisfies it. entityCounts carries only entity-type names and counts —
 // never raw values. keyID is already masked by the middleware.
 type PIIStatsRecorder interface {
-	RecordRedaction(provider, keyID string, entityCounts map[string]int, bodyBytes int, duration time.Duration, outcome string)
+	RecordRedaction(provider, keyID, orgID string, entityCounts map[string]int, bodyBytes int, duration time.Duration, outcome string)
 }
 
 // Redaction outcome labels passed to PIIStatsRecorder. Kept in sync with
@@ -207,6 +207,9 @@ func PIIRedactMiddleware(redactor PIIRedactor, cfg PIIRedactConfig) func(http.Ha
 			// proxy key when present, otherwise the masked raw provider
 			// credential a BYO-key caller used (sk-ant-…, AIza…) for debugging.
 			keyID := piiDisplayKeyID(keyRecord, r.Context())
+			// Owning organization (empty for unscoped/legacy/BYO keys) drives the
+			// by_org PII rollup dimension. OrganizationID is nil-safe.
+			orgID := keyRecord.OrganizationID()
 
 			body, oversize, err := readBoundedBody(r, maxBytes)
 			if err != nil {
@@ -228,7 +231,7 @@ func PIIRedactMiddleware(redactor PIIRedactor, cfg PIIRedactConfig) func(http.Ha
 					slog.String("provider", getProviderFromPath(r.URL.Path)),
 					slog.Int("body_bytes", len(body)),
 					slog.Int("max_body_bytes", maxBytes))
-				recordPII(cfg.Recorder, cfg.Metrics, getProviderFromPath(r.URL.Path), keyID, nil, len(body), 0, piiOutcomeOversize)
+				recordPII(cfg.Recorder, cfg.Metrics, getProviderFromPath(r.URL.Path), keyID, orgID, nil, len(body), 0, piiOutcomeOversize)
 				ctx := attachPIISummary(r.Context(), newPIISummary(PIIOutcomeOversize, nil))
 				if cfg.FailClosed {
 					writePIIResponseHeadersPartial(w, ctx)
@@ -303,7 +306,7 @@ func PIIRedactMiddleware(redactor PIIRedactor, cfg PIIRedactConfig) func(http.Ha
 						slog.Duration("duration", redactDuration),
 						slog.Duration("analyze_timeout", analyzeTimeout),
 						slog.Bool("analyze_timeout_scaled", timeoutScaled))
-					recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, nil, len(body), redactDuration, piiOutcomeFailClosed)
+					recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, orgID, nil, len(body), redactDuration, piiOutcomeFailClosed)
 					ctx := attachPIISummary(r.Context(), newPIISummary(PIIOutcomeFailClosed, nil))
 					writePIIResponseHeadersPartial(w, ctx)
 					http.Error(w, "service temporarily unavailable", http.StatusServiceUnavailable)
@@ -317,7 +320,7 @@ func PIIRedactMiddleware(redactor PIIRedactor, cfg PIIRedactConfig) func(http.Ha
 					slog.Duration("duration", redactDuration),
 					slog.Duration("analyze_timeout", analyzeTimeout),
 					slog.Bool("analyze_timeout_scaled", timeoutScaled))
-				recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, nil, len(body), redactDuration, piiOutcomeFailOpen)
+				recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, orgID, nil, len(body), redactDuration, piiOutcomeFailOpen)
 				ctx := attachPIISummary(r.Context(), newPIISummary(PIIOutcomeFailOpen, nil))
 				writePIIResponseHeadersPartial(w, ctx)
 				next.ServeHTTP(w, r.WithContext(ctx))
@@ -368,7 +371,7 @@ func PIIRedactMiddleware(redactor PIIRedactor, cfg PIIRedactConfig) func(http.Ha
 				slog.Duration("analyze_timeout", analyzeTimeout),
 				slog.Bool("analyze_timeout_scaled", timeoutScaled))
 
-			recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, result.EntityCounts, len(body), redactDuration, piiOutcomeOK)
+			recordPII(cfg.Recorder, cfg.Metrics, provider, keyID, orgID, result.EntityCounts, len(body), redactDuration, piiOutcomeOK)
 			if cfg.DevLogRawEntities && len(result.DetectedEntities) > 0 {
 				logger.Info("pii_redact: dev raw entities",
 					slog.String("path", r.URL.Path),
@@ -407,13 +410,14 @@ func recordPII(
 	metrics observability.MetricsSink,
 	provider string,
 	keyID string,
+	orgID string,
 	entityCounts map[string]int,
 	bodyBytes int,
 	duration time.Duration,
 	outcome string,
 ) {
 	if recorder != nil {
-		recorder.RecordRedaction(provider, keyID, entityCounts, bodyBytes, duration, outcome)
+		recorder.RecordRedaction(provider, keyID, orgID, entityCounts, bodyBytes, duration, outcome)
 	}
 	emitPIIRedactionMetrics(metrics, provider, outcome, entityCounts, duration)
 }

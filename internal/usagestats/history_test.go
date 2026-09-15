@@ -19,7 +19,7 @@ func TestRecorder_EmitsHistoryOnRequest(t *testing.T) {
 	})
 	r := NewRecorder()
 	r.BindHistory(s, history.StreamUsage)
-	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", 100, 50)
+	r.RecordRequest("openai", "gpt-4o-mini", "iw:abc", "user-1", "", 100, 50)
 	require.NoError(t, s.Close())
 	require.Len(t, w.Chunks, 1)
 	require.Equal(t, history.StreamUsage, w.Chunks[0].Stream)
