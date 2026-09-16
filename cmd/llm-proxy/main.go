@@ -18,6 +18,7 @@ import (
 	"github.com/Instawork/llm-proxy/internal/admin"
 	"github.com/Instawork/llm-proxy/internal/adminrollup"
 	"github.com/Instawork/llm-proxy/internal/adminusers"
+	"github.com/Instawork/llm-proxy/internal/allowlist"
 	"github.com/Instawork/llm-proxy/internal/apikeys"
 	"github.com/Instawork/llm-proxy/internal/circuit"
 	"github.com/Instawork/llm-proxy/internal/circuitstats"
@@ -167,6 +168,11 @@ var globalCircuitConfig circuit.Config
 var globalCircuitRedisFallback bool
 
 var globalAnalyzeCacheClose func() error
+
+// globalAllowlistClose releases the per-organization model allow-list resolver's
+// Redis client at shutdown. Nil when the model_allowlist feature is disabled or
+// its resolver could not be built (enforcement then fails open).
+var globalAllowlistClose func() error
 
 // Known provider names the circuit breaker tracks.  Kept as a single source
 // of truth so the wiring code, /health handler, and any future diagnostics
@@ -1444,7 +1450,23 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 
 	globalModelStatusRecorder = modelstatusstats.NewRecorder()
 	modelStatusMetrics := initializeCircuitMetrics(yamlConfig)
-	r.Use(middleware.ModelStatusMiddleware(globalProviderManager, yamlConfig, globalModelStatusRecorder, modelStatusMetrics))
+
+	// Per-organization model allow-list resolver (KAN-354). A nil resolver, a
+	// config error, or a disabled feature all mean "no enforcement" — the
+	// middleware fails open. A bad Redis URL is logged, not fatal.
+	var allowlistResolver allowlist.Resolver
+	if yamlConfig.Features.ModelAllowlist.Enabled {
+		resolver, closeFn, err := allowlist.NewResolverFromConfig(yamlConfig.Features.ModelAllowlist)
+		if err != nil {
+			logger.Warn("Model allow-list enforcement disabled (config error), failing open", "error", err)
+		} else if resolver != nil {
+			allowlistResolver = resolver
+			globalAllowlistClose = closeFn
+			logger.Info("🔒 Per-organization model allow-list enforcement enabled")
+		}
+	}
+
+	r.Use(middleware.ModelStatusMiddleware(globalProviderManager, yamlConfig, globalModelStatusRecorder, modelStatusMetrics, allowlistResolver))
 
 	if globalCostStatsRecorder != nil && yamlConfig.Features.CostTracking.Enabled {
 		costLimitOpts := middleware.CostLimitOptions{
@@ -1911,6 +1933,11 @@ func gracefulShutdown(server *http.Server) {
 	if globalAnalyzeCacheClose != nil {
 		if err := globalAnalyzeCacheClose(); err != nil {
 			logger.Warn("PII analyze cache: Redis close failed", "error", err)
+		}
+	}
+	if globalAllowlistClose != nil {
+		if err := globalAllowlistClose(); err != nil {
+			logger.Warn("Model allow-list: Redis close failed", "error", err)
 		}
 	}
 

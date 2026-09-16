@@ -51,6 +51,7 @@ var (
 		{"retired_total", "retired_total", true},
 		{"deprecated_total", "deprecated_total", true},
 		{"unknown_total", "unknown_total", true},
+		{"denied_total", "denied_total", true},
 	}
 	rateLimitOrgScalars = []orgScalar{
 		{"requests_total", "requests_total", true},
@@ -70,7 +71,7 @@ var (
 // org views entirely.
 var orgBreakdownFields = []string{
 	"by_key", "by_provider", "by_user", "by_model", "by_entity", "by_reason",
-	"by_retired", "by_deprecated", "by_unknown",
+	"by_retired", "by_deprecated", "by_unknown", "by_denied",
 	"counters",
 	"recent", "recent_events", "recent_blocks",
 	"top_models", "top_providers", "top_keys",
