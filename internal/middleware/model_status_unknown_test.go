@@ -32,7 +32,7 @@ func TestModelStatusMiddleware_UnknownModelRecorded(t *testing.T) {
 		called = true
 	})
 
-	chain := ModelStatusMiddleware(pm, cfg, recorder, nil)(next)
+	chain := ModelStatusMiddleware(pm, cfg, recorder, nil, nil)(next)
 
 	req := httptest.NewRequest(http.MethodPost, "/openai/v1/chat/completions", strings.NewReader(`{"model":"not-a-real-model","messages":[{"role":"user","content":"hi"}]}`))
 	req.Header.Set("Content-Type", "application/json")

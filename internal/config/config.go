@@ -71,12 +71,44 @@ type FeaturesConfig struct {
 	AdminDashboard   AdminDashboardConfig   `yaml:"admin_dashboard"`
 	History          HistoryConfig          `yaml:"history"`
 	ClientGzip       ClientGzipConfig       `yaml:"client_gzip"`
+	ModelAllowlist   ModelAllowlistConfig   `yaml:"model_allowlist"`
 }
 
 // ClientGzipConfig optionally gzip-compresses non-streaming responses to
 // clients that requested Accept-Encoding: gzip. Off by default.
 type ClientGzipConfig struct {
 	Enabled bool `yaml:"enabled"`
+}
+
+// ModelAllowlistConfig gates per-organization model allow-list enforcement in
+// the model-status middleware. When Enabled and an organization has a NON-EMPTY
+// allow-list, chat requests targeting a model not on that list are rejected with
+// 403. Every other case fails open (forwards): feature off, no resolved key, no
+// organization, an empty/unavailable list, or a cache/fetch error. The list is
+// fetched from the CompliWise api and cached in Redis per organization.
+//
+// No secret field lives here on purpose: the outbound fetch reuses the proxy's
+// existing portal admin secret (AI_GATEWAY_ADMIN_SYNC_SECRET) as the
+// X-AI-Gateway-Admin-Secret header, the same value the proxy validates inbound.
+type ModelAllowlistConfig struct {
+	// Enabled installs allow-list enforcement. Default: false.
+	Enabled bool `yaml:"enabled"`
+
+	// TTLSeconds is the Redis cache TTL for a fetched per-org allow-list.
+	// Zero defaults to 300 (5 minutes) at wiring time.
+	TTLSeconds int `yaml:"ttl_seconds,omitempty"`
+
+	// APIBaseURL is the CompliWise api origin the allow-list is fetched from
+	// (GET {api_base_url}/api/v1/ai-gateway/org/{orgID}/model-allowlist). Env
+	// references (e.g. "${AI_GATEWAY_API_BASE_URL}") are expanded at wiring
+	// time, so the value can come from container environment without baking a
+	// URL into YAML.
+	APIBaseURL string `yaml:"api_base_url,omitempty"`
+
+	// Redis backs the per-organization allow-list cache. Env references in its
+	// URL/Address/Password are expanded at wiring time. When nil (or when the
+	// feature is disabled), no resolver is built and enforcement fails open.
+	Redis *RedisConfig `yaml:"redis,omitempty"`
 }
 
 // BYOKeysConfig gates whether callers may authenticate with raw provider

@@ -19,9 +19,11 @@ type statusFlushed struct {
 	retiredTotal    int64
 	deprecatedTotal int64
 	unknownTotal    int64
+	deniedTotal     int64
 	retired         map[string]int64
 	deprecated      map[string]int64
 	unknown         map[string]int64
+	denied          map[string]int64
 	byOrg           map[string]orgModelStatus
 }
 
@@ -30,6 +32,7 @@ const (
 	statusRetired = iota
 	statusDeprecated
 	statusUnknown
+	statusDenied
 )
 
 // orgModelStatus holds the per-organization scalar totals needed to org-scope
@@ -38,6 +41,7 @@ type orgModelStatus struct {
 	Retired    int64
 	Deprecated int64
 	Unknown    int64
+	Denied     int64
 }
 
 func (o orgModelStatus) fields() map[string]float64 {
@@ -45,6 +49,7 @@ func (o orgModelStatus) fields() map[string]float64 {
 		"retired_total":    float64(o.Retired),
 		"deprecated_total": float64(o.Deprecated),
 		"unknown_total":    float64(o.Unknown),
+		"denied_total":     float64(o.Denied),
 	}
 }
 
@@ -66,10 +71,12 @@ type Recorder struct {
 	retiredTotal    int64
 	deprecatedTotal int64
 	unknownTotal    int64
+	deniedTotal     int64
 
 	retired    map[string]int64
 	deprecated map[string]int64
 	unknown    map[string]int64
+	denied     map[string]int64
 	byOrg      map[string]*orgModelStatus
 
 	flushed statusFlushed
@@ -86,6 +93,7 @@ func NewRecorder() *Recorder {
 		retired:    make(map[string]int64),
 		deprecated: make(map[string]int64),
 		unknown:    make(map[string]int64),
+		denied:     make(map[string]int64),
 		byOrg:      make(map[string]*orgModelStatus),
 	}
 }
@@ -144,9 +152,11 @@ func (r *Recorder) maybeRollDay(now time.Time) {
 	r.retiredTotal = 0
 	r.deprecatedTotal = 0
 	r.unknownTotal = 0
+	r.deniedTotal = 0
 	r.retired = make(map[string]int64)
 	r.deprecated = make(map[string]int64)
 	r.unknown = make(map[string]int64)
+	r.denied = make(map[string]int64)
 	r.byOrg = make(map[string]*orgModelStatus)
 }
 
@@ -163,11 +173,13 @@ func (r *Recorder) statusDeltaLocked() adminrollup.Delta {
 			"retired_total":    float64(r.retiredTotal - r.flushed.retiredTotal),
 			"deprecated_total": float64(r.deprecatedTotal - r.flushed.deprecatedTotal),
 			"unknown_total":    float64(r.unknownTotal - r.flushed.unknownTotal),
+			"denied_total":     float64(r.deniedTotal - r.flushed.deniedTotal),
 		},
 		Dimensions: map[string]map[string]float64{
 			"by_retired":    intMapDelta(r.retired, r.flushed.retired),
 			"by_deprecated": intMapDelta(r.deprecated, r.flushed.deprecated),
 			"by_unknown":    intMapDelta(r.unknown, r.flushed.unknown),
+			"by_denied":     intMapDelta(r.denied, r.flushed.denied),
 			"by_org":        orgModelStatusDelta(r.byOrg, r.flushed.byOrg),
 		},
 	}
@@ -182,6 +194,7 @@ func orgModelStatusDelta(cur map[string]*orgModelStatus, prev map[string]orgMode
 		addOrgDim(out, org, "retired_total", v.Retired-p.Retired)
 		addOrgDim(out, org, "deprecated_total", v.Deprecated-p.Deprecated)
 		addOrgDim(out, org, "unknown_total", v.Unknown-p.Unknown)
+		addOrgDim(out, org, "denied_total", v.Denied-p.Denied)
 	}
 	return out
 }
@@ -197,9 +210,11 @@ func (r *Recorder) advanceFlushedLocked() {
 	r.flushed.retiredTotal = r.retiredTotal
 	r.flushed.deprecatedTotal = r.deprecatedTotal
 	r.flushed.unknownTotal = r.unknownTotal
+	r.flushed.deniedTotal = r.deniedTotal
 	r.flushed.retired = copyIntMap(r.retired)
 	r.flushed.deprecated = copyIntMap(r.deprecated)
 	r.flushed.unknown = copyIntMap(r.unknown)
+	r.flushed.denied = copyIntMap(r.denied)
 	r.flushed.byOrg = copyOrgModelStatusMap(r.byOrg)
 }
 
@@ -242,6 +257,8 @@ func (r *Recorder) record(total *int64, counter map[string]int64, kind int, prov
 			o.Deprecated++
 		case statusUnknown:
 			o.Unknown++
+		case statusDenied:
+			o.Denied++
 		}
 	}
 	r.publishLocked()
@@ -265,6 +282,14 @@ func (r *Recorder) RecordUnknown(provider, model, orgID string) {
 	r.record(&r.unknownTotal, r.unknown, statusUnknown, provider, model, orgID)
 }
 
+// RecordDenied increments the allow-list-denied counter: a request whose model
+// is not on the requesting organization's model allow-list (KAN-354). orgID is
+// the owning organization (empty for unscoped/legacy keys); a blank org records
+// no by_org member.
+func (r *Recorder) RecordDenied(provider, model, orgID string) {
+	r.record(&r.deniedTotal, r.denied, statusDenied, provider, model, orgID)
+}
+
 // Snapshot returns a JSON-serialisable view for the admin API.
 func (r *Recorder) Snapshot() map[string]interface{} {
 	if r == nil {
@@ -278,16 +303,18 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 	localActive := bucketDay == today
 	startedAt := r.startedAt
 
-	var retiredTotal, deprecatedTotal, unknownTotal int64
-	var localRetired, localDeprecated, localUnknown map[string]int64
+	var retiredTotal, deprecatedTotal, unknownTotal, deniedTotal int64
+	var localRetired, localDeprecated, localUnknown, localDenied map[string]int64
 	var localByOrg map[string]map[string]float64
 	if localActive {
 		retiredTotal = r.retiredTotal
 		deprecatedTotal = r.deprecatedTotal
 		unknownTotal = r.unknownTotal
+		deniedTotal = r.deniedTotal
 		localRetired = copyIntMap(r.retired)
 		localDeprecated = copyIntMap(r.deprecated)
 		localUnknown = copyIntMap(r.unknown)
+		localDenied = copyIntMap(r.denied)
 		localByOrg = orgModelStatusDimMap(r.byOrg)
 	}
 
@@ -303,16 +330,18 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 		"retired_total":    retiredTotal,
 		"deprecated_total": deprecatedTotal,
 		"unknown_total":    unknownTotal,
+		"denied_total":     deniedTotal,
 		"by_retired":       topN(localRetired, 0),
 		"by_deprecated":    topN(localDeprecated, 0),
 		"by_unknown":       topN(localUnknown, 0),
+		"by_denied":        topN(localDenied, 0),
 		"by_org":           localByOrg,
 	}
 	r.mu.RUnlock()
 
 	r.MergeToday(adminrollup.MetricModelStatus, today, snap, modelStatusRollupCaps)
 	if localActive {
-		mergeLocalModelStatusIntoSnap(snap, retiredTotal, deprecatedTotal, unknownTotal, localRetired, localDeprecated, localUnknown)
+		mergeLocalModelStatusIntoSnap(snap, retiredTotal, deprecatedTotal, unknownTotal, deniedTotal, localRetired, localDeprecated, localUnknown, localDenied)
 		adminrollup.MergeSnapDimMap(snap, "by_org", localByOrg)
 	}
 	r.MergeHistory(adminrollup.MetricModelStatus, snap)
@@ -322,15 +351,17 @@ func (r *Recorder) Snapshot() map[string]interface{} {
 
 func mergeLocalModelStatusIntoSnap(
 	snap map[string]interface{},
-	retiredTotal, deprecatedTotal, unknownTotal int64,
-	localRetired, localDeprecated, localUnknown map[string]int64,
+	retiredTotal, deprecatedTotal, unknownTotal, deniedTotal int64,
+	localRetired, localDeprecated, localUnknown, localDenied map[string]int64,
 ) {
 	adminrollup.MergeSnapInt64Max(snap, "retired_total", retiredTotal)
 	adminrollup.MergeSnapInt64Max(snap, "deprecated_total", deprecatedTotal)
 	adminrollup.MergeSnapInt64Max(snap, "unknown_total", unknownTotal)
+	adminrollup.MergeSnapInt64Max(snap, "denied_total", deniedTotal)
 	mergeModelStatusNameCounts(snap, "by_retired", localRetired, 0)
 	mergeModelStatusNameCounts(snap, "by_deprecated", localDeprecated, 0)
 	mergeModelStatusNameCounts(snap, "by_unknown", localUnknown, 0)
+	mergeModelStatusNameCounts(snap, "by_denied", localDenied, 0)
 }
 
 func mergeModelStatusNameCounts(snap map[string]interface{}, field string, local map[string]int64, limit int) {
