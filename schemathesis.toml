@@ -1,0 +1,4 @@
+continue-on-failure = true
+
+[phases.coverage]
+unexpected-methods = []
