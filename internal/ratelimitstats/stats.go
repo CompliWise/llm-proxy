@@ -19,6 +19,7 @@ type blockEvent struct {
 	Model     string `json:"model,omitempty"`
 	KeyID     string `json:"key_id,omitempty"`
 	UserID    string `json:"user_id,omitempty"`
+	OrgID     string `json:"org_id,omitempty"`
 	Reason    string `json:"reason,omitempty"`
 	Metric    string `json:"metric,omitempty"`
 	Window    string `json:"window,omitempty"`
@@ -242,6 +243,7 @@ func (r *Recorder) RecordDecision(
 			Model:     model,
 			KeyID:     keyID,
 			UserID:    userID,
+			OrgID:     orgID,
 			Reason:    reason,
 			Metric:    metric,
 			Window:    window,

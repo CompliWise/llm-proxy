@@ -73,7 +73,11 @@ var orgBreakdownFields = []string{
 	"by_key", "by_provider", "by_user", "by_model", "by_entity", "by_reason",
 	"by_retired", "by_deprecated", "by_unknown", "by_denied",
 	"counters",
-	"recent", "recent_events", "recent_blocks",
+	// recent_events are circuit/provider infrastructure events (circuitstats),
+	// not tenant traffic — they carry no org_id, so they stay blanked in an org
+	// view. The per-request "recent" and "recent_blocks" feeds DO carry an
+	// org_id per row (KAN-277) and are org-scoped (not blanked) below.
+	"recent_events",
 	"top_models", "top_providers", "top_keys",
 }
 
@@ -132,6 +136,16 @@ func orgScopeStats(stats map[string]interface{}, orgID string, mapping []orgScal
 	for _, field := range orgBreakdownFields {
 		if v, ok := out[field]; ok {
 			out[field] = emptySameType(v)
+		}
+	}
+	// The per-request "recent" waterfall and "recent_blocks" feed carry an
+	// org_id per row (KAN-277), so narrow them to the requesting tenant instead
+	// of blanking: an org admin sees ONLY its own requests, never another
+	// tenant's row and never an un-attributed (blank-org) one. These rows carry
+	// key_id / user_id, so this is the cross-tenant-isolation boundary.
+	for _, field := range []string{"recent", "recent_blocks"} {
+		if v, ok := out[field]; ok {
+			out[field] = scopeRecentRows(v, orgID)
 		}
 	}
 	// daily_history rows are themselves per-day snapshots (each carries its own
@@ -201,7 +215,122 @@ func scopeHistoryRow(row map[string]interface{}, orgID string, mapping []orgScal
 			out[field] = emptySameType(v)
 		}
 	}
+	// Defense-in-depth: recent/recent_blocks are no longer in orgBreakdownFields
+	// (they're org-FILTERED at the top level, not blanked). Daily-history rows are
+	// aggregate day snapshots that never carry a per-request feed today, but if one
+	// ever did, blank it here so a trend row can't silently leak another org's
+	// requests.
+	for _, field := range []string{"recent", "recent_blocks"} {
+		if v, ok := out[field]; ok {
+			out[field] = emptySameType(v)
+		}
+	}
 	out["by_org"] = map[string]map[string]float64{orgID: fields}
+	return out
+}
+
+// scopeRecentRows narrows a per-request "recent"-style event slice (the cost
+// waterfall, the rate-limit "recent_blocks" feed, the PII / ID-gate recent
+// feeds) to a single organization: it returns a NEW slice of the SAME element
+// type containing only rows whose org_id equals orgID, and never mutates the
+// input. Rows with a blank or missing org_id are EXCLUDED — an un-attributed
+// row must never leak into a specific tenant's view. These rows carry
+// key_id / user_id, so this is the cross-tenant-isolation boundary for the
+// per-request feeds (KAN-277). Non-slice values (and an empty orgID) are
+// returned unchanged.
+//
+// The slice is a concrete, per-package typed slice in the live snapshot (e.g.
+// []coststats.recentEntry, whose element type is unexported), so rows are read
+// generically via reflection by their "org_id" JSON tag; the []map[string]
+// interface{} form produced by the rollup read path is handled too.
+func scopeRecentRows(v any, orgID string) any {
+	if v == nil || orgID == "" {
+		return v
+	}
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Slice && rv.Kind() != reflect.Array {
+		return v
+	}
+	out := reflect.MakeSlice(reflect.SliceOf(rv.Type().Elem()), 0, 0)
+	for i := 0; i < rv.Len(); i++ {
+		if rowOrgID(rv.Index(i)) == orgID {
+			out = reflect.Append(out, rv.Index(i))
+		}
+	}
+	return out.Interface()
+}
+
+// rowOrgID extracts the org_id from one recent-event row, whether the row is a
+// typed struct (read by its "org_id" JSON tag) or a map[string]interface{}
+// (the rollup-merged form, keyed "org_id"). interface{} / pointer elements are
+// unwrapped. Returns "" when absent.
+func rowOrgID(elem reflect.Value) string {
+	for elem.Kind() == reflect.Interface || elem.Kind() == reflect.Ptr {
+		if elem.IsNil() {
+			return ""
+		}
+		elem = elem.Elem()
+	}
+	switch elem.Kind() {
+	case reflect.Map:
+		mv := elem.MapIndex(reflect.ValueOf("org_id"))
+		if mv.IsValid() {
+			if s, ok := mv.Interface().(string); ok {
+				return s
+			}
+		}
+		return ""
+	case reflect.Struct:
+		t := elem.Type()
+		for i := 0; i < t.NumField(); i++ {
+			name := t.Field(i).Tag.Get("json")
+			if comma := strings.Index(name, ","); comma >= 0 {
+				name = name[:comma]
+			}
+			if name == "org_id" {
+				if f := elem.Field(i); f.Kind() == reflect.String {
+					return f.String()
+				}
+				return ""
+			}
+		}
+		return ""
+	default:
+		return ""
+	}
+}
+
+// orgScopeIDGate narrows the ID-gate summary's per-request "recent" feed to a
+// single organization (KAN-277) and returns a NEW map (the fleet/non-org view
+// is never mutated). The ID-gate recorder tracks only fleet-wide aggregates (no
+// by_org), so the scalar totals stay fleet-wide, but the identifier-bearing
+// breakdowns (top_keys/by_provider/by_entity) are BLANKED — top_keys would
+// otherwise expose OTHER tenants' masked key ids — and the recent rows are
+// org-filtered. Returns stats unchanged when orgID is empty or unavailable.
+func orgScopeIDGate(stats map[string]interface{}, orgID string) map[string]interface{} {
+	if stats == nil || orgID == "" {
+		return stats
+	}
+	if avail, ok := stats["available"].(bool); ok && !avail {
+		return stats
+	}
+	out := make(map[string]interface{}, len(stats))
+	for k, v := range stats {
+		out[k] = v
+	}
+	if v, ok := out["recent"]; ok {
+		out["recent"] = scopeRecentRows(v, orgID)
+	}
+	// The ID-gate recorder has no by_org dimension, so its fleet-wide breakdowns
+	// carry OTHER tenants' detail. Blank the identifier-bearing ones (top_keys is
+	// other orgs' masked key ids; by_provider/by_entity are their activity) so an
+	// org view can't see another tenant — mirroring orgBreakdownFields for every
+	// other metric. Scalar totals stay fleet-wide pending a proper idgate by_org.
+	for _, field := range []string{"top_keys", "by_provider", "by_entity"} {
+		if v, ok := out[field]; ok {
+			out[field] = emptySameType(v)
+		}
+	}
 	return out
 }
 

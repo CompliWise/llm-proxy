@@ -9,8 +9,8 @@ import (
 
 func TestRecorder_RecordBlockedAndClear(t *testing.T) {
 	r := NewRecorder()
-	r.RecordBlocked("gemini", "AIza…abc", "US_DRIVER_LICENSE", 0.9, 0, 2, time.Millisecond)
-	r.RecordClear("gemini", "AIza…abc", 1, 2*time.Millisecond)
+	r.RecordBlocked("gemini", "AIza…abc", "org-1", "US_DRIVER_LICENSE", 0.9, 0, 2, time.Millisecond)
+	r.RecordClear("gemini", "AIza…abc", "org-1", 1, 2*time.Millisecond)
 
 	snap := r.Snapshot()
 	require.True(t, snap["available"].(bool))

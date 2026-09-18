@@ -1448,6 +1448,11 @@ func runServer(yamlConfig *config.YAMLConfig, disableGzip bool) {
 		))
 	}
 
+	// Stamp org_id / key_id on the otelmux server span once the proxy key is
+	// resolved (KAN-277) so per-request traces are filterable per organization.
+	// A no-op for unscoped/legacy traffic (no key on the context).
+	r.Use(middleware.SpanOrgTagMiddleware())
+
 	globalModelStatusRecorder = modelstatusstats.NewRecorder()
 	modelStatusMetrics := initializeCircuitMetrics(yamlConfig)
 

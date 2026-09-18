@@ -28,6 +28,7 @@ type recentEntry struct {
 	Time         int64          `json:"time"`
 	Provider     string         `json:"provider"`
 	KeyID        string         `json:"key_id,omitempty"`
+	OrgID        string         `json:"org_id,omitempty"`
 	EntityCounts map[string]int `json:"entity_counts"`
 	EntityTotal  int            `json:"entity_total"`
 	BodyBytes    int            `json:"body_bytes"`
@@ -268,6 +269,7 @@ func (r *Recorder) RecordRedaction(
 		Time:         now.Unix(),
 		Provider:     provider,
 		KeyID:        keyID,
+		OrgID:        orgID,
 		EntityCounts: entityCounts,
 		EntityTotal:  entityTotal,
 		BodyBytes:    bodyBytes,

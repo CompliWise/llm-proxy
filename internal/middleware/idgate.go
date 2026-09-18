@@ -126,6 +126,7 @@ func IDGateMiddleware(ocrClient OCRTextExtractor, analyzer IDSpanAnalyzer, cfg I
 			gateStart := time.Now()
 			provider := getProviderFromPath(r.URL.Path)
 			keyID := idGateDisplayKeyID(r)
+			orgID := idGateOrgID(r)
 
 			// Scan all embedded images concurrently (bounded). A government-ID
 			// hit is decisive and short-circuits the rest; errors are collected
@@ -199,7 +200,7 @@ func IDGateMiddleware(ocrClient OCRTextExtractor, analyzer IDSpanAnalyzer, cfg I
 					emitIDGateBlocked(cfg.Metrics, provider, res.entityType)
 					if cfg.Recorder != nil {
 						cfg.Recorder.RecordBlocked(
-							provider, keyID, res.entityType, res.score, res.index, len(images), time.Since(gateStart),
+							provider, keyID, orgID, res.entityType, res.score, res.index, len(images), time.Since(gateStart),
 						)
 					}
 					http.Error(w, idGateBlockMessage, http.StatusUnprocessableEntity)
@@ -222,7 +223,7 @@ func IDGateMiddleware(ocrClient OCRTextExtractor, analyzer IDSpanAnalyzer, cfg I
 						slog.Duration("duration", time.Since(gateStart)))
 					emitIDGateScanFailed(cfg.Metrics, provider, firstErr.stage, true)
 					if cfg.Recorder != nil {
-						cfg.Recorder.RecordScanFailed(provider, keyID, firstErr.stage, true, len(images), time.Since(gateStart))
+						cfg.Recorder.RecordScanFailed(provider, keyID, orgID, firstErr.stage, true, len(images), time.Since(gateStart))
 					}
 					http.Error(w, "service temporarily unavailable", http.StatusServiceUnavailable)
 					return
@@ -235,7 +236,7 @@ func IDGateMiddleware(ocrClient OCRTextExtractor, analyzer IDSpanAnalyzer, cfg I
 					slog.String("error", firstErr.err.Error()))
 				emitIDGateScanFailed(cfg.Metrics, provider, firstErr.stage, false)
 				if cfg.Recorder != nil {
-					cfg.Recorder.RecordScanFailed(provider, keyID, firstErr.stage, false, len(images), time.Since(gateStart))
+					cfg.Recorder.RecordScanFailed(provider, keyID, orgID, firstErr.stage, false, len(images), time.Since(gateStart))
 				}
 				next.ServeHTTP(w, r)
 				return
@@ -250,7 +251,7 @@ func IDGateMiddleware(ocrClient OCRTextExtractor, analyzer IDSpanAnalyzer, cfg I
 				slog.Duration("duration", gateDuration))
 			emitIDGateScanned(cfg.Metrics, provider, len(images), gateDuration)
 			if cfg.Recorder != nil {
-				cfg.Recorder.RecordClear(provider, keyID, len(images), gateDuration)
+				cfg.Recorder.RecordClear(provider, keyID, orgID, len(images), gateDuration)
 			}
 			next.ServeHTTP(w, r)
 			return
@@ -264,6 +265,16 @@ func idGateDisplayKeyID(r *http.Request) string {
 		return MaskKeyID(keyRecord.PK)
 	}
 	return InboundCredentialID(r.Context())
+}
+
+// idGateOrgID returns the owning organization for the request's resolved proxy
+// key, or "" for unscoped/legacy traffic. Stamped on the ID-gate recent-events
+// row so the admin view can be narrowed per organization (KAN-277).
+func idGateOrgID(r *http.Request) string {
+	if keyRecord, _ := apikeys.FromContext(r.Context()); keyRecord != nil {
+		return keyRecord.OrganizationID()
+	}
+	return ""
 }
 
 func govIDHit(spans []redact.Span, entityTypes []string, threshold float64) (bool, string, float64) {

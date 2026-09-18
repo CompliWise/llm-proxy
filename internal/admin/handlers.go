@@ -617,7 +617,10 @@ func (h *handler) handlePII(w http.ResponseWriter, r *http.Request) {
 		resp["stats"] = map[string]interface{}{"available": false}
 	}
 	if h.deps.IDGateSummary != nil {
-		resp["id_gate_stats"] = h.deps.IDGateSummary()
+		// id_gate_stats has no per-org aggregate, but its recent feed carries an
+		// org_id per row — scope those rows to the requesting tenant (KAN-277)
+		// while leaving the fleet (non-org) view untouched.
+		resp["id_gate_stats"] = orgScopeIDGate(h.deps.IDGateSummary(), requestOrgID(r))
 	} else {
 		resp["id_gate_stats"] = map[string]interface{}{"available": false}
 	}

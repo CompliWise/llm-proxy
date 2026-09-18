@@ -42,6 +42,32 @@ func TestRateLimitRecorderAggregatesByOrg_NoCrossBleed(t *testing.T) {
 	}
 }
 
+// KAN-277: each blocked-event row must stamp org_id so the admin read path can
+// scope the recent_blocks feed per organization. An org-less block records a
+// blank org_id (excluded from any scoped view by the reader).
+func TestRateLimitRecentBlocksCarryOrgID(t *testing.T) {
+	r := NewRecorder()
+	r.RecordDecision("openai", "gpt-4o", "iw:a", "u1", "org-1", false, "rpm", "requests", "minute", "k", 1, 0)
+	r.RecordDecision("openai", "gpt-4o", "iw:b", "u2", "org-2", false, "rpm", "requests", "minute", "k", 1, 0)
+	r.RecordDecision("openai", "gpt-4o", "iw:c", "u3", "", false, "rpm", "requests", "minute", "k", 1, 0)
+
+	snap := r.Snapshot()
+	recent, ok := snap["recent_blocks"].([]blockEvent)
+	if !ok {
+		t.Fatalf("recent_blocks type = %T", snap["recent_blocks"])
+	}
+	if len(recent) != 3 {
+		t.Fatalf("recent_blocks len = %d, want 3", len(recent))
+	}
+	byKey := map[string]string{}
+	for _, e := range recent {
+		byKey[e.KeyID] = e.OrgID
+	}
+	if byKey["iw:a"] != "org-1" || byKey["iw:b"] != "org-2" || byKey["iw:c"] != "" {
+		t.Fatalf("recent_blocks org ids = %v, want org-1/org-2/empty", byKey)
+	}
+}
+
 func TestRateLimitRecorderByOrgRoundTripsThroughRollup(t *testing.T) {
 	mr, err := miniredis.Run()
 	if err != nil {

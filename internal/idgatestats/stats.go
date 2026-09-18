@@ -25,6 +25,7 @@ type recentEntry struct {
 	Time       int64   `json:"time"`
 	Provider   string  `json:"provider"`
 	KeyID      string  `json:"key_id,omitempty"`
+	OrgID      string  `json:"org_id,omitempty"`
 	Outcome    string  `json:"outcome"`
 	EntityType string  `json:"entity_type,omitempty"`
 	Score      float64 `json:"score,omitempty"`
@@ -234,7 +235,10 @@ func copyIntMap(m map[string]int64) map[string]int64 {
 }
 
 // RecordClear logs a request whose embedded images were scanned and cleared.
-func (r *Recorder) RecordClear(provider, keyID string, imageCount int, duration time.Duration) {
+// orgID is the owning organization (empty for unscoped/legacy keys); it is
+// stamped on the recent-events row so an org-scoped admin view can be narrowed
+// to the tenant's own traffic (KAN-277).
+func (r *Recorder) RecordClear(provider, keyID, orgID string, imageCount int, duration time.Duration) {
 	if r == nil || imageCount <= 0 {
 		return
 	}
@@ -242,6 +246,7 @@ func (r *Recorder) RecordClear(provider, keyID string, imageCount int, duration 
 		Time:       time.Now().UTC().Unix(),
 		Provider:   provider,
 		KeyID:      keyID,
+		OrgID:      orgID,
 		Outcome:    OutcomeClear,
 		ImageCount: imageCount,
 		DurationMs: float64(duration.Microseconds()) / 1000.0,
@@ -249,8 +254,9 @@ func (r *Recorder) RecordClear(provider, keyID string, imageCount int, duration 
 	})
 }
 
-// RecordBlocked logs a 422 government-ID block.
-func (r *Recorder) RecordBlocked(provider, keyID, entityType string, score float64, imageIndex int, imageCount int, duration time.Duration) {
+// RecordBlocked logs a 422 government-ID block. orgID is stamped on the recent
+// row for per-organization scoping (KAN-277).
+func (r *Recorder) RecordBlocked(provider, keyID, orgID, entityType string, score float64, imageIndex int, imageCount int, duration time.Duration) {
 	if r == nil {
 		return
 	}
@@ -258,6 +264,7 @@ func (r *Recorder) RecordBlocked(provider, keyID, entityType string, score float
 		Time:       time.Now().UTC().Unix(),
 		Provider:   provider,
 		KeyID:      keyID,
+		OrgID:      orgID,
 		Outcome:    OutcomeBlocked,
 		EntityType: entityType,
 		Score:      score,
@@ -269,7 +276,8 @@ func (r *Recorder) RecordBlocked(provider, keyID, entityType string, score float
 }
 
 // RecordScanFailed logs an OCR/analyze failure (fail-open or fail-closed).
-func (r *Recorder) RecordScanFailed(provider, keyID, stage string, failClosed bool, imageCount int, duration time.Duration) {
+// orgID is stamped on the recent row for per-organization scoping (KAN-277).
+func (r *Recorder) RecordScanFailed(provider, keyID, orgID, stage string, failClosed bool, imageCount int, duration time.Duration) {
 	if r == nil {
 		return
 	}
@@ -281,6 +289,7 @@ func (r *Recorder) RecordScanFailed(provider, keyID, stage string, failClosed bo
 		Time:       time.Now().UTC().Unix(),
 		Provider:   provider,
 		KeyID:      keyID,
+		OrgID:      orgID,
 		Outcome:    outcome,
 		Stage:      stage,
 		ImageCount: imageCount,

@@ -11,6 +11,7 @@ import (
 	"github.com/Instawork/llm-proxy/internal/adminrollup"
 	"github.com/Instawork/llm-proxy/internal/config"
 	"github.com/Instawork/llm-proxy/internal/coststats"
+	"github.com/Instawork/llm-proxy/internal/idgatestats"
 	"github.com/Instawork/llm-proxy/internal/modelstatusstats"
 	"github.com/Instawork/llm-proxy/internal/pii"
 	"github.com/Instawork/llm-proxy/internal/ratelimitstats"
@@ -111,6 +112,24 @@ func assertBreakdownsEmpty(t *testing.T, stats map[string]interface{}, fields ..
 	}
 }
 
+// recentRowOrgIDs returns the org_id of each row in a decoded recent-style feed
+// (recent / recent_blocks), in order. Used to assert an org-scoped feed carries
+// only the requesting tenant's rows and never a blank-org (un-attributed) one.
+func recentRowOrgIDs(t *testing.T, stats map[string]interface{}, field string) []string {
+	t.Helper()
+	raw, ok := stats[field].([]interface{})
+	if !ok {
+		return nil
+	}
+	out := make([]string, 0, len(raw))
+	for _, r := range raw {
+		row, _ := r.(map[string]interface{})
+		org, _ := row["org_id"].(string)
+		out = append(out, org)
+	}
+	return out
+}
+
 func TestHandleCost_OrgScoped(t *testing.T) {
 	h, _ := testOrgScopedHandler(t)
 
@@ -123,22 +142,26 @@ func TestHandleCost_OrgScoped(t *testing.T) {
 	assert.Greater(t, fieldLen(global, "recent"), 0, "global recent should be populated")
 
 	// org-1 header -> org-1's slice only, with NO other-tenant breakdown rows.
+	// The "recent" waterfall is now org-scoped (KAN-277), not blanked: it must
+	// carry org-1's own row and neither org-2's nor the blank-org one.
 	rec = httptest.NewRecorder()
 	h.handleCost(rec, orgReq(t, h, "/admin/api/cost", "org-1"))
 	stats := statsFromResponse(t, rec)
 	assert.Equal(t, 1.0, stats["spend_today_usd"])
 	assert.Equal(t, float64(100), stats["input_tokens_today"])
 	assert.Equal(t, float64(1), stats["requests_today"])
-	assertBreakdownsEmpty(t, stats, "by_key", "by_provider", "by_user", "recent")
+	assertBreakdownsEmpty(t, stats, "by_key", "by_provider", "by_user")
+	assert.Equal(t, []string{"org-1"}, recentRowOrgIDs(t, stats, "recent"))
 
-	// A different org sees its own numbers, still no cross-tenant rows.
+	// A different org sees its own numbers and only its own recent rows.
 	rec = httptest.NewRecorder()
 	h.handleCost(rec, orgReq(t, h, "/admin/api/cost", "org-2"))
 	stats = statsFromResponse(t, rec)
 	assert.Equal(t, 5.0, stats["spend_today_usd"])
-	assertBreakdownsEmpty(t, stats, "by_key", "by_provider", "by_user", "recent")
+	assertBreakdownsEmpty(t, stats, "by_key", "by_provider", "by_user")
+	assert.Equal(t, []string{"org-2"}, recentRowOrgIDs(t, stats, "recent"))
 
-	// An org with no traffic sees zero, never the global sum.
+	// An org with no traffic sees zero, never the global sum, and an empty feed.
 	rec = httptest.NewRecorder()
 	h.handleCost(rec, orgReq(t, h, "/admin/api/cost", "org-none"))
 	stats = statsFromResponse(t, rec)
@@ -180,7 +203,9 @@ func TestHandlePII_OrgScoped(t *testing.T) {
 	assert.Equal(t, float64(1), stats["requests_with_pii"])
 	// detection_rate recomputed from org-2's own counters (1 with PII / 2 clean).
 	assert.Equal(t, 0.5, stats["detection_rate"])
-	assertBreakdownsEmpty(t, stats, "by_entity", "by_provider", "top_keys", "recent")
+	assertBreakdownsEmpty(t, stats, "by_entity", "by_provider", "top_keys")
+	// recent is now org-scoped (KAN-277): both of org-2's rows, no other tenant.
+	assert.Equal(t, []string{"org-2", "org-2"}, recentRowOrgIDs(t, stats, "recent"))
 }
 
 func TestHandleModelStatus_OrgScoped(t *testing.T) {
@@ -221,7 +246,17 @@ func TestHandleRateLimits_OrgScoped(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, float64(1), stats["requests_total"])
 	assert.Equal(t, float64(1), stats["requests_blocked"])
-	assertBreakdownsEmpty(t, stats, "by_provider", "by_reason", "recent_blocks")
+	assertBreakdownsEmpty(t, stats, "by_provider", "by_reason")
+	// recent_blocks is now org-scoped (KAN-277): org-2's single block only.
+	assert.Equal(t, []string{"org-2"}, recentRowOrgIDs(t, stats, "recent_blocks"))
+
+	// org-1 made no blocked request, so its recent_blocks feed is empty.
+	rec = httptest.NewRecorder()
+	h.handleRateLimits(rec, orgReq(t, h, "/admin/api/rate-limits", "org-1"))
+	body = decodeJSONBody(t, rec)
+	stats, ok = body["stats"].(map[string]interface{})
+	require.True(t, ok)
+	assertBreakdownsEmpty(t, stats, "recent_blocks")
 }
 
 func TestHandleListKeys_OrgScoped(t *testing.T) {
@@ -251,6 +286,94 @@ func TestHandleListKeys_OrgScoped(t *testing.T) {
 	require.NoError(t, decodeInto(rec, &scoped))
 	require.Len(t, scoped, 1)
 	assert.Equal(t, "org-1 key", scoped[0]["description"])
+}
+
+// TestScopeRecentRows_NoCrossTenantLeak is the KAN-277 org-scope regression at
+// the reader level: a snapshot whose recent / recent_blocks feeds carry
+// mixed-org rows (including a blank/un-attributed one) must, once org-scoped,
+// expose ONLY the requesting org's rows — never another tenant's and never a
+// blank-org one — while recent_events (circuit/provider infra, no org_id) stays
+// blanked and the input snapshot is never mutated.
+func TestScopeRecentRows_NoCrossTenantLeak(t *testing.T) {
+	snap := map[string]interface{}{
+		"available":       true,
+		"spend_today_usd": 6.0,
+		"by_org": map[string]map[string]float64{
+			"org-1": {"spend_usd": 1.0, "requests": 1},
+			"org-2": {"spend_usd": 5.0, "requests": 1},
+		},
+		"recent": []map[string]interface{}{
+			{"org_id": "org-1", "key_id": "iw:a"},
+			{"org_id": "org-2", "key_id": "iw:b"},
+			{"key_id": "iw:c"}, // blank / un-attributed org
+		},
+		"recent_blocks": []map[string]interface{}{
+			{"org_id": "org-2", "key_id": "iw:b"},
+			{"org_id": "org-1", "key_id": "iw:a"},
+		},
+		"recent_events": []map[string]interface{}{
+			{"kind": "circuit_open", "provider": "openai"},
+		},
+	}
+
+	out := orgScopeStats(snap, "org-1", costOrgScalars)
+
+	recent, ok := out["recent"].([]map[string]interface{})
+	require.True(t, ok, "recent type = %T", out["recent"])
+	require.Len(t, recent, 1, "recent must contain only org-1's row")
+	assert.Equal(t, "org-1", recent[0]["org_id"])
+	assert.Equal(t, "iw:a", recent[0]["key_id"])
+
+	blocks, ok := out["recent_blocks"].([]map[string]interface{})
+	require.True(t, ok, "recent_blocks type = %T", out["recent_blocks"])
+	require.Len(t, blocks, 1, "recent_blocks must contain only org-1's row")
+	assert.Equal(t, "org-1", blocks[0]["org_id"])
+
+	// recent_events carry no org_id (circuit/provider infra) → stays blanked.
+	events, ok := out["recent_events"].([]map[string]interface{})
+	require.True(t, ok, "recent_events type = %T", out["recent_events"])
+	assert.Len(t, events, 0, "recent_events must stay blanked in an org view")
+
+	// The input snapshot must be untouched (scoping copies, never mutates).
+	assert.Len(t, snap["recent"].([]map[string]interface{}), 3, "input recent was mutated")
+	assert.Len(t, snap["recent_blocks"].([]map[string]interface{}), 2, "input recent_blocks was mutated")
+}
+
+// TestHandlePII_IDGateRecentOrgScoped covers the /pii handler's secondary feed:
+// id_gate_stats has no per-org aggregate, but its recent rows carry an org_id,
+// so an org-scoped request must see only its own ID-gate rows while the fleet
+// (no-header) view keeps them all.
+func TestHandlePII_IDGateRecentOrgScoped(t *testing.T) {
+	h, _ := testAdminHandler(t)
+	idgateRec := idgatestats.NewRecorder()
+	idgateRec.RecordClear("openai", "iw:a", "org-1", 1, time.Millisecond)
+	idgateRec.RecordBlocked("openai", "iw:b", "org-2", "US_DRIVER_LICENSE", 0.9, 0, 2, time.Millisecond)
+	idgateRec.RecordScanFailed("openai", "iw:c", "", "ocr", false, 1, time.Millisecond)
+
+	h.deps.YAMLConfig.Features.PIIRedact.Enabled = true
+	h.deps.IDGateSummary = idgateRec.Snapshot
+
+	// Fleet (no header): every ID-gate recent row is present.
+	rec := httptest.NewRecorder()
+	h.handlePII(rec, orgReq(t, h, "/admin/api/pii", ""))
+	body := decodeJSONBody(t, rec)
+	idg, ok := body["id_gate_stats"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, 3, fieldLen(idg, "recent"), "fleet id_gate recent must keep all rows")
+	assert.Positive(t, fieldLen(idg, "top_keys"), "fleet id_gate top_keys must be present")
+
+	// org-1 header: only org-1's ID-gate recent row, no org-2 and no blank-org.
+	rec = httptest.NewRecorder()
+	h.handlePII(rec, orgReq(t, h, "/admin/api/pii", "org-1"))
+	body = decodeJSONBody(t, rec)
+	idg, ok = body["id_gate_stats"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, []string{"org-1"}, recentRowOrgIDs(t, idg, "recent"))
+	// The identifier-bearing breakdowns must be blanked in an org view — top_keys
+	// would otherwise leak OTHER tenants' masked key ids (idgate has no by_org).
+	assert.Equal(t, 0, fieldLen(idg, "top_keys"), "org id_gate top_keys must be blanked")
+	assert.Equal(t, 0, fieldLen(idg, "by_provider"), "org id_gate by_provider must be blanked")
+	assert.Equal(t, 0, fieldLen(idg, "by_entity"), "org id_gate by_entity must be blanked")
 }
 
 // flushable is satisfied by every metric recorder (via the embedded

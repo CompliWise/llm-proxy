@@ -51,6 +51,7 @@ type recentEntry struct {
 	Provider       string  `json:"provider"`
 	KeyID          string  `json:"key_id,omitempty"`
 	UserID         string  `json:"user_id,omitempty"`
+	OrgID          string  `json:"org_id,omitempty"`
 	SpendUSD       float64 `json:"spend_usd"`
 	InputSpendUSD  float64 `json:"input_spend_usd"`
 	OutputSpendUSD float64 `json:"output_spend_usd"`
@@ -243,6 +244,7 @@ func (r *Recorder) RecordRequest(
 		Provider:       provider,
 		KeyID:          keyID,
 		UserID:         userID,
+		OrgID:          orgID,
 		SpendUSD:       spendUSD,
 		InputSpendUSD:  inputSpendUSD,
 		OutputSpendUSD: outputSpendUSD,
