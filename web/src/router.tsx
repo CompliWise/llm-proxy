@@ -36,10 +36,7 @@ export default function Router() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter
-        basename={basename}
-        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
-      >
+      <BrowserRouter basename={basename}>
         <Routes>
           <Route element={<LoginPage />} path="/login" />
           <Route element={<SharePage />} path="/share/:id" />

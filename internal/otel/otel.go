@@ -507,7 +507,7 @@ func WrapSlogHandler(base slog.Handler, serviceName string) slog.Handler {
 // bridge, whose current release requires a newer Go toolchain than the proxy.
 type otelLogHandler struct {
 	logger otellog.Logger
-	attrs  []otellog.KeyValue
+	attrs  []attribute.KeyValue
 	group  string
 }
 
@@ -516,7 +516,7 @@ func (h *otelLogHandler) Enabled(context.Context, slog.Level) bool { return true
 func (h *otelLogHandler) Handle(ctx context.Context, r slog.Record) error {
 	var rec otellog.Record
 	rec.SetTimestamp(r.Time)
-	rec.SetBody(otellog.StringValue(r.Message))
+	rec.SetBody(attribute.StringValue(r.Message))
 	rec.SetSeverity(slogToOtelSeverity(r.Level))
 	if len(h.attrs) > 0 {
 		rec.AddAttributes(h.attrs...)
@@ -530,7 +530,7 @@ func (h *otelLogHandler) Handle(ctx context.Context, r slog.Record) error {
 }
 
 func (h *otelLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	next := append([]otellog.KeyValue{}, h.attrs...)
+	next := append([]attribute.KeyValue{}, h.attrs...)
 	for _, a := range attrs {
 		next = append(next, slogAttrToKV(h.group, a))
 	}
@@ -558,10 +558,10 @@ func slogToOtelSeverity(l slog.Level) otellog.Severity {
 	}
 }
 
-func slogAttrToKV(group string, a slog.Attr) otellog.KeyValue {
+func slogAttrToKV(group string, a slog.Attr) attribute.KeyValue {
 	key := a.Key
 	if group != "" {
 		key = group + "." + key
 	}
-	return otellog.String(key, a.Value.String())
+	return attribute.String(key, a.Value.String())
 }
