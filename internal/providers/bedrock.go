@@ -122,6 +122,10 @@ func NewBedrockProxy(opts ...ProxyOptions) *BedrockProxy {
 	proxy.Transport = newProxyTransport(opt.DisableGzip)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		// Strip the upstream provider's CORS headers so our CORS middleware stays
+		// the single source (a duplicate Access-Control-Allow-Origin breaks browsers).
+		stripUpstreamCORS(resp.Header)
+
 		if bedrockProxy.isStreamingResponse(resp) {
 			log.Printf("Detected streaming response from Bedrock")
 			resp.Header.Set("Cache-Control", "no-cache")

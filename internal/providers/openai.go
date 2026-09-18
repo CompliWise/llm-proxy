@@ -61,6 +61,10 @@ func NewOpenAIProxy(opts ...ProxyOptions) *OpenAIProxy {
 
 	// Add custom response modifier for streaming support
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		// Strip the upstream provider's CORS headers so our CORS middleware stays
+		// the single source (a duplicate Access-Control-Allow-Origin breaks browsers).
+		stripUpstreamCORS(resp.Header)
+
 		// Handle streaming responses
 		if openAIProxy.isStreamingResponse(resp) {
 			log.Printf("Detected streaming response from OpenAI")

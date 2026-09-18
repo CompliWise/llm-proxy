@@ -59,6 +59,10 @@ func NewAnthropicProxy(opts ...ProxyOptions) *AnthropicProxy {
 
 	// Add custom response modifier for streaming support
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		// Strip the upstream provider's CORS headers so our CORS middleware stays
+		// the single source (a duplicate Access-Control-Allow-Origin breaks browsers).
+		stripUpstreamCORS(resp.Header)
+
 		// Handle streaming responses
 		if anthropicProxy.isStreamingResponse(resp) {
 			log.Printf("Detected streaming response from Anthropic")

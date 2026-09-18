@@ -17,6 +17,22 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// stripUpstreamCORS removes any CORS response headers set by the upstream
+// provider (OpenAI/Anthropic/Gemini all return `Access-Control-Allow-Origin: *`).
+// Go's httputil.ReverseProxy *appends* upstream response headers on top of the
+// ones our CORS middleware already set, so without this the browser receives two
+// `Access-Control-Allow-Origin` values and rejects the response ("Failed to
+// fetch"). CORS is a hop-by-hop concern the gateway owns end-to-end; the
+// middleware remains the single source of these headers.
+func stripUpstreamCORS(h http.Header) {
+	h.Del("Access-Control-Allow-Origin")
+	h.Del("Access-Control-Allow-Methods")
+	h.Del("Access-Control-Allow-Headers")
+	h.Del("Access-Control-Allow-Credentials")
+	h.Del("Access-Control-Expose-Headers")
+	h.Del("Access-Control-Max-Age")
+}
+
 // LLMResponseMetadata represents standardized response metadata across all providers
 // LLMResponseMetadata is the canonical post-response metadata snapshot
 // that every provider implementation populates and the cost tracker
