@@ -42,6 +42,32 @@ func TestPIIRecorderAggregatesByOrg_NoCrossBleed(t *testing.T) {
 	}
 }
 
+// KAN-277: each redaction row must stamp org_id so the admin read path can
+// scope the recent feed per organization. An org-less request records a blank
+// org_id (excluded from any scoped view by the reader).
+func TestPIIRecentCarriesOrgID(t *testing.T) {
+	r := NewRecorder()
+	r.RecordRedaction("openai", "iw:a", "org-1", map[string]int{"EMAIL_ADDRESS": 1}, 100, time.Millisecond, OutcomeOK)
+	r.RecordRedaction("openai", "iw:b", "org-2", nil, 100, time.Millisecond, OutcomeOK)
+	r.RecordRedaction("openai", "iw:c", "", nil, 100, time.Millisecond, OutcomeOK)
+
+	snap := r.Snapshot()
+	recent, ok := snap["recent"].([]recentEntry)
+	if !ok {
+		t.Fatalf("recent type = %T", snap["recent"])
+	}
+	if len(recent) != 3 {
+		t.Fatalf("recent len = %d, want 3", len(recent))
+	}
+	byKey := map[string]string{}
+	for _, e := range recent {
+		byKey[e.KeyID] = e.OrgID
+	}
+	if byKey["iw:a"] != "org-1" || byKey["iw:b"] != "org-2" || byKey["iw:c"] != "" {
+		t.Fatalf("recent org ids = %v, want org-1/org-2/empty", byKey)
+	}
+}
+
 func TestPIIRecorderByOrgRoundTripsThroughRollup(t *testing.T) {
 	mr, err := miniredis.Run()
 	if err != nil {

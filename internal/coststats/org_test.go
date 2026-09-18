@@ -43,6 +43,38 @@ func TestRecorderAggregatesByOrg_NoCrossBleed(t *testing.T) {
 	}
 }
 
+// KAN-277: the per-request "recent" waterfall must stamp org_id per row so the
+// admin read path can scope it per organization. An org-less request records a
+// blank org_id (the reader excludes those from any scoped view).
+func TestRecorderRecentCarriesOrgID(t *testing.T) {
+	r := NewRecorder()
+	r.RecordRequest("openai", "iw:a", "u1", "gpt-4o", "org-1", 0.01, 0.006, 0.004, 10, 5)
+	r.RecordRequest("openai", "iw:b", "u2", "gpt-4o", "org-2", 0.02, 0.012, 0.008, 20, 10)
+	r.RecordRequest("openai", "iw:c", "u3", "gpt-4o", "", 0.05, 0.03, 0.02, 50, 25)
+
+	snap := r.Snapshot()
+	recent, ok := snap["recent"].([]recentEntry)
+	if !ok {
+		t.Fatalf("recent type = %T", snap["recent"])
+	}
+	if len(recent) != 3 {
+		t.Fatalf("recent len = %d, want 3", len(recent))
+	}
+	byKey := map[string]string{}
+	for _, e := range recent {
+		byKey[e.KeyID] = e.OrgID
+	}
+	if byKey["iw:a"] != "org-1" {
+		t.Fatalf("iw:a org_id = %q, want org-1", byKey["iw:a"])
+	}
+	if byKey["iw:b"] != "org-2" {
+		t.Fatalf("iw:b org_id = %q, want org-2", byKey["iw:b"])
+	}
+	if byKey["iw:c"] != "" {
+		t.Fatalf("iw:c org_id = %q, want empty (org-less)", byKey["iw:c"])
+	}
+}
+
 // by_org must round-trip through the shared rollup store: an instance records +
 // flushes, and a fresh instance bound to the same store reads it back via
 // MergeToday (fleet-wide read path from Redis aggregates).
