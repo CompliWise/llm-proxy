@@ -51,7 +51,7 @@ export function liveTrendCaption(points: HistoryPoint[]): string {
   if (points.length === 1) {
     return "1 sample — new points appear when the metric changes";
   }
-  const spanSec = Math.round((points.at(-1).t - points[0].t) / 1000);
+  const spanSec = Math.round((points[points.length - 1].t - points[0].t) / 1000);
   const mins = Math.floor(spanSec / 60);
   const secs = spanSec % 60;
   const span = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
